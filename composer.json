@@ -1,0 +1,15 @@
+{
+    "name": "lison/cakephp.base",
+    "type": "cakephp-plugin",
+    "require": {
+        "composer/installers": "*",
+        "lison/php.base"
+    },
+    "repositories": [{
+        "type": "git",
+        "url": "http://git.lison.nazwa.pl/php.base.git"
+    }],
+    "extra": {
+        "installer-name": "Base"
+    }
+}
