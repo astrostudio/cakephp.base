@@ -3,7 +3,7 @@
     "type": "cakephp-plugin",
     "require": {
         "composer/installers": "*",
-        "lison/php.base"
+        "lison/php.base": "1.0.*"
     },
     "repositories": [{
         "type": "git",
