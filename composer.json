@@ -15,6 +15,6 @@
         "url": "http://git.lison.nazwa.pl/php.base.git"
     }],
     "extra": {
-        "installer-name": "Base"
+        "installer-name": "cakephp.base"
     }
 }
