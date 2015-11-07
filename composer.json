@@ -3,7 +3,7 @@
     "type": "cakephp-plugin",
     "require": {
         "composer/installers": "*",
-        "lison/php.base": "1.0.*"
+        "lison/php.base": "2.0.*"
     },
     "autoload": {
         "psr-4": {
