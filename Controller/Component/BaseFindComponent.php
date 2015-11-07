@@ -1,18 +1,21 @@
 <?php
+namespace Base\Controller\Component;
+
+use Cake\Controller\Component;
+use Base\Base;
+
 class BaseFindComponent extends Component {
 
-    var $components=array('Session');
+    public $components=[];
     
-    var $controller=null;
-    
-    var $settings=array();
+    public $settings=array();
 
-    public function __construct(ComponentCollection $collection,$settings=array()) {
-        parent::__construct($collection,$settings);
-        
-        $this->settings=$settings;
+    public function initialize(array $config){
+        parent::initialize($config);
+
+        $this->settings=Base::extend([],$config);
     }
-    
+
     public function options($name,$value){
         if(!empty($this->settings[$name][$value]['options'])){
             return($this->settings[$name][$value]['options']);
@@ -73,13 +76,4 @@ class BaseFindComponent extends Component {
         return(array());
     }
     
-    function initialize($controller) {
-        $this->controller=$controller;
-    }
-    
-    function startup($controller) {
-    }
-    
-    function shutdown($controller) {        
-    }
 }

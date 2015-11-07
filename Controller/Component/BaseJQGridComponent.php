@@ -1,35 +1,41 @@
 <?php
-App::uses('Base','Vendor/Base')
-App::uses('IBaseFilter','Vendor/Base');
-App::uses('BaseJQGridFilter','Base.Model');
+namespace Base\Controller\Component;
+
+use Cake\Controller\Component;
+use Cake\Utility\Hash;
+use Cake\ORM\Query;
+use Cake\Network\Response;
+use Base\Base;
+use Base\Model\BaseQuery;
+use Base\IBaseFilter;
+use Base\Model\BaseJQGridFilter;
 
 class BaseJQGridComponent extends Component {
 
-    public $controller=null;
-    
     public $settings=array();
-    
-    public function __construct(ComponentCollection $collection,$settings=array()) {
-        parent::__construct($collection,$settings);
 
-        $this->settings=$settings;
+    public function initialize(array $config){
+        parent::initialize($config);
+
+        $this->settings=Base::extend([],$config);
     }
-    
-    public function browse(Model $Model,$query=array(),$sorters=array(),$searches=array(),$filter=null){ 
-        $page=Hash::get($this->controller->request->query,'page',1);
+
+    public function browse(Query $query,$sorters=array(),$searches=array(),$filter=null){
+        $request=$this->_registry->getController()->request;
+        $page=Hash::get($request->query,'page',1);
         $page=$page?$page:1;
-        $limit=Hash::get($this->controller->request->query,'rows',20);
+        $limit=Hash::get($request->query,'rows',20);
         $limit=$limit?$limit:20;
-        $sidx=Hash::get($this->controller->request->query,'sidx',null);
-        $sord=Hash::get($this->controller->request->query,'sord','asc');
-        $search=Hash::get($this->controller->request->query,'_filter',null);
+        $sidx=Hash::get($request->query,'sidx',null);
+        $sord=Hash::get($request->query,'sord','asc');
+        $search=Hash::get($request->query,'_filter',null);
         
         if(!empty($search) and ($search!=='false')){
-            $query=Base::extend($query,BaseQuery::search($search,$searches));
+            $query=BaseQuery::search($query,$search,$searches);
         }
-        
-        $count=$Model->find('count',$query);
-        
+
+        $count=$query->count();
+
         $pages=$count>0?ceil($count/$limit):0;
         
         if($page>$pages){
@@ -38,16 +44,13 @@ class BaseJQGridComponent extends Component {
         
         $offset=($page-1)*$limit;
         
-        $query=Base::extend($query,array(
-            'limit'=>$limit,
-            'offset'=>$offset
-        ));
-        
+        $query=$query->limit($limit)->page($page);
+
         if(!empty($sidx) and !empty($sorters[$sidx])){
-            $query=Base::extend($query,array('order'=>$sorters[$sidx].($sord=='desc'?' DESC':'')));
+            $query=$query->order([$sorters[$sidx]=>$sord=='desc'?'DESC':'ASC']);
         }
         
-        $rows=$Model->find('all',$query);
+        $rows=$query->toArray();
         
         $response=array(
             'rows'=>array(),
@@ -60,19 +63,9 @@ class BaseJQGridComponent extends Component {
             $response['rows'][]=$filter?(($filter instanceof IBaseFilter)?$filter->filter($row):(is_callable($filter)?call_user_func($filter,$row):$row)):$row;
         }
         
-        return(new CakeResponse(array(
+        return(new Response(array(
             'body'=>json_encode($response)
         )));
     }
         
-    public function initialize($controller) {
-        $this->controller=$controller;
-    }
-    
-    public function startup($controller) {
-    }
-    
-    public function shutdown($controller) {
-    }
-    
 }

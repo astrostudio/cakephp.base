@@ -1,53 +1,50 @@
 <?php
-App::uses('Base','Vendor/Base');
+namespace Base\Controller\Component;
+
+use Cake\Controller\Component;
+use Cake\Utility\Hash;
+use Cake\Routing\Router;
+use Base\Base;
 
 class BaseComponent extends Component {
 
-    var $components=array('Session');
-    var $controller=null;
-    var $settings=array();
+    public $components=array('Flash');
+    public $settings=array();
 
-    public function __construct(ComponentCollection $collection, $settings = array()) {
-        parent::__construct($collection,$settings);
-        
-        if(isset($settings)) {
-            $this->settings=$settings;
-        }
+    public function initialize(array $config){
+        parent::initialize($config);
+
+        $this->settings=Base::extend([],$config);
     }
     
-    public function check($condition,$debug,$url=null,$status=null,$exit=true) {
+    public function check($condition,$debug,$url=null,$status=null) {
         if(!$condition) {
             if(isset($debug)) {
-                $this->Session->setFlash($debug);
+                $this->Flash->set($debug);
             }
 
-            $this->controller->redirect($url,$status,$exit);
+            $this->_registry->getController()->redirect($url,$status);
         }
     }
     
     public function link(){
+        $request=$this->_registry->getController()->request;
         $url=array();
-        $url['plugin']=Hash::get($this->controller->request->params,'plugin');
-        $url['controller']=Hash::get($this->controller->request->params,'controller');
-        $url['action']=Hash::get($this->controller->request->params,'action');
+        $url['plugin']=$request->param('plugin');
+        $url['controller']=$request->param('controller');
+        $url['action']=$request->param('action');
         
-        if(!empty($this->controller->request->params['named'])){
-            $url=Base::extend($url,$this->controller->request->params['named']);
-        }
-        
-        if(!empty($this->controller->request->params['pass'])){
-            $url=Base::extend($url,$this->controller->request->params['pass']);
+        if(!empty($request->params['pass'])){
+            $url=Base::extend($url,$request->params['pass']);
         }
         
         return($url);
     }
     
     public function backHere(){
-        if($this->controller){
-            $url=$this->link();
-        
-            $this->backUrl($url);
-        }
+        $url=$this->link();
+
+        $this->backUrl($url);
     }
     
     public function back($url=array()){
@@ -62,17 +59,17 @@ class BaseComponent extends Component {
     
     public function backUrl($url=null){
         if($url===false){
-            $this->Session->delete('Base.back');
-            
+            $this->_registry->getController()->request->session()->delete('Base.back');
+
             return(array());
         }
         
         if(!empty($url)){
-            $this->Session->write('Base.back',$url);
+            $this->_registry->getController()->request->session()->write('Base.back',$url);
         }
         
-        if($this->Session->check('Base.back')){
-            return($this->Session->read('Base.back'));
+        if($this->_registry->getController()->request->session()->check('Base.back')){
+            return($this->_registry->getController()->request->session()->read('Base.back'));
         }
         
         return(array());
@@ -80,20 +77,21 @@ class BaseComponent extends Component {
     
     public function url($url=null){
         $surl=Router::url('/',true);
+        $request=$this->_registry->getController()->request;
         
         if(!isset($url)){
-            if(!empty($this->request->params['plugin'])){
-                $surl.=$this->request->params['plugin'];
+            if(!empty($request->params['plugin'])){
+                $surl.=$request->params['plugin'];
             }
             
-            $surl.=$this->controller->params['controller'].'/'.$this->controller->params['action'];
+            $surl.=$request->params['controller'].'/'.$request->params['action'];
         }
         else if(is_array($url)){
             if(!empty($url['plugin'])){
                 $surl.=$url['plugin'].'/';
             }
 
-            $surl.=!empty($url['controller'])?$url['controller']:$this->controller->params['controller'].'/';
+            $surl.=!empty($url['controller'])?$url['controller']:$request->params['controller'].'/';
             $surl.=!empty($url['action'])?$url['action']:'index';
         }
         
@@ -101,16 +99,7 @@ class BaseComponent extends Component {
     }
     
     public function clear(){
-        $this->Session->delete('Base');
+        $this->_registry->getController()->request->session()->delete('Base');
     }
     
-    function initialize($controller) {
-        $this->controller=$controller;
-    }
-    
-    function startup($controller) {
-    }
-    
-    function shutdown($controller) {        
-    }
 }

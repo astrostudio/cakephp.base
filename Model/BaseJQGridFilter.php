@@ -1,5 +1,8 @@
 <?php
-App::uses('IBaseFilter','Base.Model');
+namespace Base\Model;
+
+use Cake\Utility\Hash;
+use Base\IBaseFilter;
 
 class BaseJQGridFilter implements IBaseFilter {
     

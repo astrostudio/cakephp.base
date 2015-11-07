@@ -1,27 +1,29 @@
 <?php
-App::uses('ParamRequestHandler','Base.Controller/Component/BaseRequest');
-App::uses('GetRequestHandler','Base.Controller/Component/BaseRequest');
-App::uses('PostRequestHandler','Base.Controller/Component/BaseRequest');
-App::uses('PassRequestHandler','Base.Controller/Component/BaseRequest');
+namespace Base\Controller\Component;
+
+use Cake\Controller\Component;
+use Cake\Event;
+use Base\Base;
+use Base\Controller\Component\BaseRequest\IBaseRequestHandler;
+use Base\Controller\Component\BaseRequest\ParamRequestHandler;
+use Base\Controller\Component\BaseRequest\GetRequestHandler;
+use Base\Controller\Component\BaseRequest\PostRequestHandler;
+use Base\Controller\Component\BaseRequest\PassRequestHandler;
 
 class BaseRequestComponent extends Component {
 
-    public $components=array('Session');
-    
-    public $controller=null;
-    
     public $settings=array();
     
     public $handlers=array();
     
     public $handler=null;
-    
-    public function __construct(ComponentCollection $collection,$settings=array()) {
-        parent::__construct($collection,$settings);
 
-        $this->settings=$settings;
-        $this->handlers=array();
-        
+    public function initialize(array $config){
+        parent::initialize($config);
+
+        $this->settings=Base::extend([],$config);
+        $this->handlers=[];
+
         $this->setHandler('param',new ParamRequestHandler());
         $this->setHandler('get',new GetRequestHandler());
         $this->setHandler('post',new PostRequestHandler());
@@ -78,7 +80,7 @@ class BaseRequestComponent extends Component {
         $handlers=$this->handlers($handler);
         
         foreach($handlers as $handler){
-            if($handler->has($this->controller->request,$name)){
+            if($handler->has($this->_registry->getController()->request,$name)){
                 return(true);
             }
         }
@@ -90,8 +92,8 @@ class BaseRequestComponent extends Component {
         $handlers=$this->handlers($handler);
         
         foreach($handlers as $handler){
-            if($handler->has($this->controller->request,$name)){
-                return($handler->get($this->controller->request,$name,$value));
+            if($handler->has($this->_registry->getController()->request,$name)){
+                return($handler->get($this->_registry->getController()->request,$name,$value));
             }
         }
         
@@ -102,7 +104,7 @@ class BaseRequestComponent extends Component {
         $handlers=$this->handlers($handler);
         
         foreach($handlers as $handler){
-            $handler->set($this->controller->request,$name,$value);
+            $handler->set($this->_registry->getController()->request,$name,$value);
         }
         
         return(true);
@@ -112,7 +114,7 @@ class BaseRequestComponent extends Component {
         $handlers=$this->handlers($handler);
         
         foreach($handlers as $handler){
-            $handler->clear($this->controller->request,$name);
+            $handler->clear($this->_registry->getController()->request,$name);
         }
         
         return(true);
@@ -136,28 +138,27 @@ class BaseRequestComponent extends Component {
         
     public function space(){
         $space='';
+        $request=$this->_registry->getController()->request;
 
-        if($this->controller){
-            if(!empty($this->controller->params['plugin'])){
-                $space.=$this->controller->params['plugin'].'.';
-            }
-            
-            $space.=$this->controller->params['controller'].'.'.$this->controller->params['action'];
+        if(!empty($request->params['plugin'])){
+            $space.=$request->params['plugin'].'.';
         }
-        
+
+        $space.=$request->params['controller'].'.'.$request->params['action'];
+
         return($space);
     }
      
     public function check($name,$space=null,$handler=null){
-        return($this->Session->check($this->session($name,$space,$handler)));
+        return($this->_registry->getController()->request->session()->check($this->session($name,$space,$handler)));
     }
     
     public function read($name,$space=null,$handler=null){
-        return($this->Session->read($this->session($name,$space,$handler)));
+        return($this->_registry->getController()->request->session()->read($this->session($name,$space,$handler)));
     }
     
     public function write($name,$value,$space=null,$handler=null){
-        $this->Session->write($this->session($name,$space,$handler),$value);
+        $this->_registry->getController()->request->session()->write($this->session($name,$space,$handler),$value);
     }
     
     public function changed($name=null,$space=null,$handler=null){
@@ -169,56 +170,55 @@ class BaseRequestComponent extends Component {
         }
         
         $space=!empty($space)?$space:$this->space();
-        
-        if($this->controller){
-            if(!empty($this->settings[$this->controller->params['action']])){
-                foreach($this->settings[$this->controller->params['action']] as $handler=>$names){
-                    if(!empty($names)){
-                        foreach($names as $name){
-                            if($this->changed($name,$space,$handler)){
-                                return(true);
-                            }
+        $request=$this->_registry->getController()->request;
+
+
+        if(!empty($this->settings[$request->params['action']])){
+            foreach($this->settings[$request->params['action']] as $handler=>$names){
+                if(!empty($names)){
+                    foreach($names as $name){
+                        if($this->changed($name,$space,$handler)){
+                            return(true);
                         }
                     }
                 }
             }
         }
-        
+
         return(false);
     }
     
     public function delete($name,$space=null,$handler=null){
-        $this->Session->delete($this->session($name,$space,$handler));
+        $this->_registry->getController()->request->session()->delete($this->session($name,$space,$handler));
     }
     
     public function load($space=null){
         $space=!empty($space)?$space:$this->space();
-        
-        if($this->controller){
-            if(!empty($this->settings[$this->controller->params['action']])){
-                foreach($this->settings[$this->controller->params['action']] as $handler=>$names){
-                    if(!empty($names)){
-                        foreach($names as $name=>$spec){
-                            if(!is_string($name)){
-                                $name=$spec;
-                                $space0=$space;
-                            }
-                            else {
-                                $space0=$spec;
-                            }
-                        
-                            $ovalue=$this->read($name,$space0,$handler);
-                            
-                            if(!$this->has($name,$handler)){
-                                $this->set($name,$ovalue,$handler);
-                            }
-                            else {
-                                $nvalue=$this->get($name,null,$handler);
-                                
-                                if($nvalue=='null'){
-                                    $this->clear($name,$handler);
-                                    $this->delete($name,$space0,$handler);
-                                }                                
+        $request=$this->_registry->getController()->request;
+
+        if(!empty($this->settings[$request->params['action']])){
+            foreach($this->settings[$request->params['action']] as $handler=>$names){
+                if(!empty($names)){
+                    foreach($names as $name=>$spec){
+                        if(!is_string($name)){
+                            $name=$spec;
+                            $space0=$space;
+                        }
+                        else {
+                            $space0=$spec;
+                        }
+
+                        $ovalue=$this->read($name,$space0,$handler);
+
+                        if(!$this->has($name,$handler)){
+                            $this->set($name,$ovalue,$handler);
+                        }
+                        else {
+                            $nvalue=$this->get($name,null,$handler);
+
+                            if($nvalue=='null'){
+                                $this->clear($name,$handler);
+                                $this->delete($name,$space0,$handler);
                             }
                         }
                     }
@@ -228,27 +228,26 @@ class BaseRequestComponent extends Component {
     }
     
     public function save($space=null){
-        $space=!empty($space)?$space:$this->space();        
+        $space=!empty($space)?$space:$this->space();
+        $request=$this->_registry->getController()->request;
 
-        if($this->controller){
-            if(!empty($this->settings[$this->controller->params['action']])){
-                foreach($this->settings[$this->controller->params['action']] as $handler=>$names){
-                    if(!empty($names)){
-                        foreach($names as $name=>$spec){                            
-                            if(!is_string($name)){
-                                $name=$spec;
-                                $space0=$space;
-                            }
-                            else {
-                                $space0=$spec;
-                            }
-                        
-                            if($this->has($name,$handler)){
-                                $this->write($name,$this->get($name,null,$handler),$space0,$handler);
-                            }
-                            else {
-                                $this->delete($name,$space0,$handler);
-                            }
+        if(!empty($this->settings[$request->params['action']])){
+            foreach($this->settings[$request->params['action']] as $handler=>$names){
+                if(!empty($names)){
+                    foreach($names as $name=>$spec){
+                        if(!is_string($name)){
+                            $name=$spec;
+                            $space0=$space;
+                        }
+                        else {
+                            $space0=$spec;
+                        }
+
+                        if($this->has($name,$handler)){
+                            $this->write($name,$this->get($name,null,$handler),$space0,$handler);
+                        }
+                        else {
+                            $this->delete($name,$space0,$handler);
                         }
                     }
                 }
@@ -256,15 +255,11 @@ class BaseRequestComponent extends Component {
         }
     }
 	    
-    public function initialize($controller) {
-        $this->controller=$controller;
-    }
-    
-    public function startup($controller) {
+    public function startup(Event $event) {
 		$this->load();
     }
     
-    public function shutdown($controller) {
+    public function shutdown(Event $event) {
 		$this->save();
     }
     

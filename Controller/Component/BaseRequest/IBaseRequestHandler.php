@@ -1,9 +1,11 @@
 <?php
-App::uses('CakeRequest','Network');
+namespace Base\Controller\Component\BaseRequest;
+
+use Cake\Network\Request;
 
 interface IBaseRequestHandler {
-    function has(CakeRequest $request,$name);
-    function get(CakeRequest $request,$name,$value=null);
-    function set(CakeRequest $request,$name,$value);
-    function clear(CakeRequest $request,$name);
+    function has(Request $request,$name);
+    function get(Request $request,$name,$value=null);
+    function set(Request $request,$name,$value);
+    function clear(Request $request,$name);
 }

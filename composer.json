@@ -5,6 +5,11 @@
         "composer/installers": "*",
         "lison/php.base": "1.0.*"
     },
+    "autoload": {
+        "psr-4": {
+            "Base\\": "."
+        }
+    },
     "repositories": [{
         "type": "git",
         "url": "http://git.lison.nazwa.pl/php.base.git"

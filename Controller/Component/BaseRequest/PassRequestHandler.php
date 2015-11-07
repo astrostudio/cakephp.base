@@ -1,9 +1,13 @@
 <?php
-App::uses('IBaseRequestHandler','Base.Controller/Component/BaseRequest');
+namespace Base\Controller\Component\BaseRequest;
+
+use Cake\Network\Request;
+use Cake\Utility\Hash;
+use Base\Controller\Component\BaseRequest\IBaseRequestHandler;
 
 class PassRequestHandler implements IBaseRequestHandler {
 
-    public function has(CakeRequest $request,$name){
+    public function has(Request $request,$name){
         if(!empty($request->pass[$name])){
             return(Hash::check($request->pass,$name));
         }
@@ -11,7 +15,7 @@ class PassRequestHandler implements IBaseRequestHandler {
         return(false);
     }
     
-    public function get(CakeRequest $request,$name,$value=null){
+    public function get(Request $request,$name,$value=null){
         if($this->has($request,$name)){
             return(Hash::get($request->pass,$name));
         }
@@ -19,7 +23,7 @@ class PassRequestHandler implements IBaseRequestHandler {
         return($value);
     }
     
-    public function set(CakeRequest $request,$name,$value){
+    public function set(Request $request,$name,$value){
         if(!isset($request->pass)){
             $request->pass=array();
         }
@@ -27,7 +31,7 @@ class PassRequestHandler implements IBaseRequestHandler {
         $request->pass=Hash::insert($request->pass,$name,$value);
     }
     
-    public function clear(CakeRequest $request,$name){
+    public function clear(Request $request,$name){
         if(isset($request->pass)){
             $request->pass=Hash::remove($request->pass,$name);
         }

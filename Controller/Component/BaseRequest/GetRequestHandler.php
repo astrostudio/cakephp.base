@@ -1,9 +1,13 @@
 <?php
-App::uses('IBaseRequestHandler','Base.Controller/Component/BaseRequest');
+namespace Base\Controller\Component\BaseRequest;
+
+use Cake\Network\Request;
+use Cake\Utility\Hash;
+use Base\Controller\Component\BaseRequest\IBaseRequestHandler;
 
 class GetRequestHandler implements IBaseRequestHandler {
 
-    public function has(CakeRequest $request,$name){
+    public function has(Request $request,$name){
         if(!empty($request->query)){
             return(Hash::check($request->query,$name));
         }
@@ -11,7 +15,7 @@ class GetRequestHandler implements IBaseRequestHandler {
         return(false);
     }
     
-    public function get(CakeRequest $request,$name,$value=null){
+    public function get(Request $request,$name,$value=null){
         if($this->has($request,$name)){
             return(Hash::get($request->query,$name));
         }
@@ -19,7 +23,7 @@ class GetRequestHandler implements IBaseRequestHandler {
         return($value);
     }
     
-    public function set(CakeRequest $request,$name,$value){
+    public function set(Request $request,$name,$value){
         if(!isset($request->query)){
             $request->query=array();
         }
@@ -27,7 +31,7 @@ class GetRequestHandler implements IBaseRequestHandler {
         $request->query=Hash::insert($request->query,$name,$value);
     }
     
-    public function clear(CakeRequest $request,$name){
+    public function clear(Request $request,$name){
         if(isset($request->query)){
             $request->query=Hash::remove($request->query,$name);
         }

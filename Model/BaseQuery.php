@@ -1,19 +1,23 @@
 <?php
+namespace Base\Model;
+
+use Cake\ORM\Query;
+
 class BaseQuery {
 
-    static public function search($text,$fields=array()){
+    static public function search(Query $query,$text,$fields=[]){
         $conditions=array();
-        
+
         foreach($fields as $field){
             array_push($conditions,array(
                 $field.' like "%'.$text.'%"'
             ));
         }
-        
-        return(array('conditions'=>array(array('OR'=>$conditions))));
+
+        return($query->where(['OR'=>$conditions]));
     }
-    
-    static public function tag($field,$tag=null){
+
+    static public function tag(Query $query,$field,$tag=null){
         if(is_string($tag)){
             $tags=explode(' ',$tag);
         }
@@ -33,8 +37,8 @@ class BaseQuery {
                 ));
             }
         }
-        
-        return(array('conditions'=>array(array('OR'=>$conditions))));
+
+        return($query->where(['OR'=>$conditions]));
     }
     
 }

@@ -1,16 +1,24 @@
 <?php
-App::uses('Base','Vendor/Base');
+namespace Base\View\Helper;
 
-class BaseHelper extends AppHelper {
+use Cake\View\Helper;
+use Cake\View\View;
+use Cake\Utility\Hash;
+use Cake\Routing\Router;
+use Base\Base;
+use DateTime;
+use Exception;
+
+class BaseHelper extends Helper {
 
     public $helpers=array('Session','Html');
     
     public $baseSlotClass='base-slot';
 
-    public function __construct(View $View,$settings =array()){
-        parent::__construct($View,$settings);
+    public function __construct(View $View,array $config=[]){
+        parent::__construct($View,$config);
         
-        $this->baseSlotClass=Hash::get($settings,'baseSlotClass','base-slot');
+        $this->baseSlotClass=Hash::get($config,'baseSlotClass','base-slot');
     }
     
     public function value(&$variable,$default=null){
@@ -26,8 +34,8 @@ class BaseHelper extends AppHelper {
     }    
     
     public function back($url=array()){
-        if($this->Session->check('Base.back')){
-            return($this->Session->read('Base.back'));
+        if($this->request->session()->check('Base.back')){
+            return($this->request->session()->read('Base.back'));
         }
         
         return($url);
@@ -116,16 +124,6 @@ class BaseHelper extends AppHelper {
         unset($this->buffers[$name]);
     }
   
-    public function cell($name,$options=array()){
-        $cell=Base::cell($name);
-
-        if(!$cell){
-            throw new Exception('Base: Cell not found.');
-        }
-        
-        return($this->output($cell->display($this->_View,$options)));
-    }
-    
     public function slot($url=null,$options=array()){
         $class=Hash::get($options,'class','');
         
