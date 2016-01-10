@@ -1,5 +1,6 @@
 <?php
 App::uses('Base','Vendor/Base');
+App::uses('BaseCell','Base.Model');
 
 class BaseHelper extends AppHelper {
 
@@ -117,7 +118,7 @@ class BaseHelper extends AppHelper {
     }
   
     public function cell($name,$options=array()){
-        $cell=Base::cell($name);
+        $cell=BaseCell::cell($name);
 
         if(!$cell){
             throw new Exception('Base: Cell not found.');
