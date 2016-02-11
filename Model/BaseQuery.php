@@ -6,12 +6,14 @@ use Cake\ORM\Query;
 class BaseQuery {
 
     static public function search(Query $query,$text,$fields=[]){
-        $conditions=array();
+        $conditions=[];
 
         foreach($fields as $field){
-            array_push($conditions,array(
-                $field.' like "%'.$text.'%"'
-            ));
+            $conditions[]=$field.' like "%'.$text.'%"';
+        }
+
+        if(empty($conditions)){
+            return($query);
         }
 
         return($query->where(['OR'=>$conditions]));
@@ -38,7 +40,9 @@ class BaseQuery {
             }
         }
 
+        debug($conditions);
+
         return($query->where(['OR'=>$conditions]));
     }
-    
+
 }
