@@ -4,7 +4,7 @@ class BaseMenu {
     static private $menus=array();       
     
     static public function get($path){
-        return(Hash::get(self::$menus,$path);
+        return(Hash::get(self::$menus,$path));
     }
         
     /* 
