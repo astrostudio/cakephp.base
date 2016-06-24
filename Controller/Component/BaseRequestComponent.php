@@ -1,5 +1,6 @@
 <?php
 App::uses('ParamRequestHandler','Base.Controller/Component/BaseRequest');
+App::uses('ParamsRequestHandler','Base.Controller/Component/BaseRequest');
 App::uses('GetRequestHandler','Base.Controller/Component/BaseRequest');
 App::uses('PostRequestHandler','Base.Controller/Component/BaseRequest');
 App::uses('PassRequestHandler','Base.Controller/Component/BaseRequest');
@@ -23,6 +24,7 @@ class BaseRequestComponent extends Component {
         $this->handlers=array();
         
         $this->setHandler('param',new ParamRequestHandler());
+        $this->setHandler('params',new ParamsRequestHandler());
         $this->setHandler('get',new GetRequestHandler());
         $this->setHandler('post',new PostRequestHandler());
         $this->setHandler('pass',new PassRequestHandler());
