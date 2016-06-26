@@ -173,7 +173,7 @@ class BaseRestComponent extends Component {
         }
     }
 
-    public function save(Model $model,$data=[],$options=[],$query=[]){
+    private function __save($save,Model $model,$data=[],$options=[],$query=[]){
         try {
             $code=self::SUCCESS;
 
@@ -191,7 +191,7 @@ class BaseRestComponent extends Component {
                 $data=Base::extend($data,[$model->alias=>$this->controller->request->query]) ;
             }
 
-            if (!$model->saveAll($data,$options)){
+            if(!call_user_func([$model,$save],$data,$options)){
                 return($this->responseCode(self::PRECONDITION,__d(Inflector::underscore($model->alias),'_not_saved'),['errors'=>$model->validationErrors]));
             }
 
@@ -206,6 +206,14 @@ class BaseRestComponent extends Component {
         catch(Exception $exc){
             return($this->responseCode(self::EXCEPTION,$exc->getMessage()));
         }
+    }
+
+    public function save(Model $model,$data=[],$options=[],$query=[]){
+        return($this->__save('save',$data,$options,$query));
+    }
+
+    public function saveAll(Model $model,$data=[],$options=[],$query=[]){
+        return($this->__save('saveAll',$data,$options,$query));
     }
 
     public function delete(Model $model,$cascade=true){
