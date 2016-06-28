@@ -118,28 +118,39 @@ class BaseQuery {
         return($query);
     }
 
-    const RF_SECOND='second';
-    const RF_MINUTE='minute';
-    const RF_HOUR='hour';
-    const RF_DAY='day';
-    const RF_WEEK='week';
-    const RF_MONTH='month';
-    const RF_YEAR='year';
+    const TR_SECOND='second';
+    const TR_MINUTE='minute';
+    const TR_HOUR='hour';
+    const TR_DAY='day';
+    const TR_WEEK='week';
+    const TR_MONTH='month';
+    const TR_YEAR='year';
 
-    static private $__rangeFormats=[
-        self::RF_SECOND=>'%Y-%m-%d %H:%i:%s',
-        self::RF_MINUTE=>'%Y-%m-%d %H:%i',
-        self::RF_HOUR=>'%Y-%m-%d %H',
-        self::RF_DAY=>'%Y-%m-%d',
-        self::RF_WEEK=>'%Y-%v',
-        self::RF_MONTH=>'%Y-%m',
-        self::RF_YEAR=>'%Y',
+    static private $__timeRanges=[
+        self::TR_SECOND=>['database'=>'%Y-%m-%d %H:%i:%s','interval'=>'PT1S','datetime'=>'Y-m-d H:i:s'],
+        self::TR_MINUTE=>['database'=>'%Y-%m-%d %H:%i','interval'=>'PT1M','datetime'=>'Y-m-d H:i'],
+        self::TR_HOUR=>['database'=>'%Y-%m-%d %H','interval'=>'PT1H','datetime'=>'Y-m-d H'],
+        self::TR_DAY=>['database'=>'%Y-%m-%d','interval'=>'P1D','datetime'=>'Y-m-d'],
+        self::TR_WEEK=>['database'=>'%Y-%v','interval'=>'P7D','datetime'=>'Y-W'],
+        self::TR_MONTH=>['database'=>'%Y-%m','interval'=>'P1M','datetime'=>'Y-m'],
+        self::TR_YEAR=>['database'=>'%Y','interval'=>'P1Y','datetime'=>'Y']
     ];
 
-    static public function rangeFormat($query,$field,$name,$format){
-        if(!empty(self::$__rangeFormats[$format])){
-            $format=self::$__rangeFormats[$format];
+    static public function timeRangeProperty($range,$name){
+        if(empty(self::$__timeRanges[$range])){
+            return(null);
         }
+
+        if(empty(self::$__timeRanges[$range][$name])){
+            return(null);
+        }
+
+        return(self::$__timeRanges[$range][$name]);
+    }
+
+    static public function timeRangeQuery($query,$field,$name,$range){
+        $format=self::timeRangeProperty($range,'database');
+        $format=!empty($format)?$format:self::timeRangeProperty(self::TR_DAY,'database');
 
         $expr='DATE_FORMAT('.$field.',"'.$format.'")';
 
@@ -152,22 +163,22 @@ class BaseQuery {
     static public function rangePeriod($query,$field,$name,$period=BaseTime::PN_THIS_WEEK,DateTime $time=null){
         switch($period){
             case BaseTime::PN_THIS_YEAR:
-                $query=self::rangeFormat($query,$field,$name,self::RF_MONTH);
+                $query=self::timeRangeQuery($query,$field,$name,self::TR_MONTH);
                 break;
             case BaseTime::PN_THIS_MONTH:
-                $query=self::rangeFormat($query,$field,$name,self::RF_WEEK);
+                $query=self::timeRangeQuery($query,$field,$name,self::TR_WEEK);
                 break;
             case BaseTime::PN_THIS_WEEK:
-                $query=self::rangeFormat($query,$field,$name,self::RF_DAY);
+                $query=self::timeRangeQuery($query,$field,$name,self::TR_DAY);
                 break;
             case BaseTime::PN_LAST_YEAR:
-                $query=self::rangeFormat($query,$field,$name,self::RF_MONTH);
+                $query=self::timeRangeQuery($query,$field,$name,self::TR_MONTH);
                 break;
             case BaseTime::PN_LAST_MONTH:
-                $query=self::rangeFormat($query,$field,$name,self::RF_WEEK);
+                $query=self::timeRangeQuery($query,$field,$name,self::TR_WEEK);
                 break;
             case BaseTime::PN_LAST_WEEK:
-                $query=self::rangeFormat($query,$field,$name,self::RF_DAY);
+                $query=self::timeRangeQuery($query,$field,$name,self::TR_DAY);
                 break;
         }
 

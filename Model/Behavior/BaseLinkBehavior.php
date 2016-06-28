@@ -68,30 +68,6 @@ class BaseLinkBehavior extends ModelBehavior {
     }
     
     public function appendLink(Model $Model,$predId,$succId,$cycles=false,$transition=true,$extendUp=false,$extendDown=false){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        $id=$this->appendLink_($Model,$predId,$succId,$cycles,$transition,$extendUp,$extendDown);
-        
-        if(!$id){
-            $ds->rollback();
-            
-            return(false);
-        }
-                
-        if(!$ds->commit()){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        return($id);
-    }
-
-    public function appendLink_(Model $Model,$predId,$succId,$cycles=false,$transition=true,$extendUp=false,$extendDown=false){
         if(!$cycles){
             if($this->checkLink($Model,$succId,$predId,$transition)){
                 return(false);
@@ -124,18 +100,18 @@ class BaseLinkBehavior extends ModelBehavior {
         
         if($extendUp){
             if($extendDown){
-                if(!$this->extendLink_($Model,$predId,$succId)){
+                if(!$this->extendLink($Model,$predId,$succId)){
                     return(false);
                 }
             }
             else {
-                if(!$this->extendLinkUp_($Model,$predId,$succId)){
+                if(!$this->extendLinkUp($Model,$predId,$succId)){
                     return(false);
                 }
             }
         }
         else if($extendDown){
-            if(!$this->extendLinkDown_($Model,$predId,$succId)){
+            if(!$this->extendLinkDown($Model,$predId,$succId)){
                 return(false);
             }
         }
@@ -144,26 +120,6 @@ class BaseLinkBehavior extends ModelBehavior {
     }
 
     public function deleteLink(Model $Model,$id,$cascade=false,$shrinkUp=false,$shrinkDown=false){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->deleteLink_($Model,$id,$cascade,$shrinkUp,$shrinkDown)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function deleteLink_(Model $Model,$id,$cascade=false,$shrinkUp=false,$shrinkDown=false){
         $Model->recursive=-1;
         
         $link=$Model->read(null,$id);
@@ -174,44 +130,24 @@ class BaseLinkBehavior extends ModelBehavior {
         
         if($shrinkUp){
             if($shrinkDown){
-                if(!$this->shrinkLink_($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
+                if(!$this->shrinkLink($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
                     return(false);
                 }
             }
-            else if(!$this->shrinkLinkUp_($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
+            else if(!$this->shrinkLinkUp($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
                 return(false);
             }            
         }
         else if($shrinkDown){
-            if(!$this->shrinkLinkDown_($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
+            if(!$this->shrinkLinkDown($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
                 return(false);
             }            
         }
         
-        return($this->delete($id,$cascade));
+        return($Model->delete($id,$cascade));
     }
     
     public function removeLink(Model $Model,$predId,$succId,$cascade=false,$shrinkUp=false,$shrinkDown=false,$force=true){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->removeLink_($Model,$predId,$succId,$cascade,$shrinkUp,$shrinkDown,$force)){
-            $ds->rolback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function removeLink_(Model $Model,$predId,$succId,$cascade=false,$shrinkUp=false,$shrinkDown=false,$force=true){
         $link=$this->loadLink($Model,$predId,$succId);
         
         if(empty($link)){
@@ -222,30 +158,10 @@ class BaseLinkBehavior extends ModelBehavior {
             return(true);
         }
         
-        return($this->deleteLink_($link[$Model->alias][$Model->primaryKey],$cascade,$shrinkUp,$shrinkDown));
+        return($this->deleteLink($link[$Model->alias][$Model->primaryKey],$cascade,$shrinkUp,$shrinkDown));
     }
     
     public function extendLinkUp(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLinkUp_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function extendLinkUp_(Model $Model,$predId,$succId){
         $links=$Model->find('all',array(
             'joins'=>array(
                 array('table'=>$Model->useTable,'alias'=>'Item'.$Model->alias,'type'=>'LEFT','conditions'=>array('Item'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred,'Item'.$Model->alias.'.'.$Model->__linkSucc.'='.$succId))
@@ -275,26 +191,6 @@ class BaseLinkBehavior extends ModelBehavior {
     }
     
     public function extendLinkDown(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLinkDown_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function extendLinkDown_(Model $Model,$predId,$succId){
         $links=$Model->find('all',array(
             'joins'=>array(
                 array('table'=>$Model->useTable,'alias'=>'Item'.$Model->alias,'type'=>'LEFT','conditions'=>array('Item'.$Model->alias.'.'.$Model->__linkPred.'='.$predId,'Item'.$Model->alias.'.'.$Model->__linkSucc.'='.$Model->alias.'.'.$Model->__linkSucc))
@@ -323,47 +219,7 @@ class BaseLinkBehavior extends ModelBehavior {
         return(true);
     }
     
-    public function extendLink(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLink_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
     public function extendLinkAll(Model $Model){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLinkAll_($Model)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function extendLinkAll_(Model $Model){
         $links=$Model->find('all',array(
             'joins'=>array(
                 array('table'=>$Model->useTable,'alias'=>'Succ'.$Model->alias,'conditions'=>array('Succ'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkSucc)),
@@ -393,26 +249,6 @@ class BaseLinkBehavior extends ModelBehavior {
     }
 
     public function shrinkLink(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLink_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function shrinkLink_(Model $Model,$predId,$succId){
         $links=$Model->find('all',array(
             'joins'=>array(
                 array('table'=>$Model->useTable,'alias'=>'P','conditions'=>array('P.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred)),
@@ -439,26 +275,6 @@ class BaseLinkBehavior extends ModelBehavior {
     }
     
     public function shrinkLinkUp(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLinkUp_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function shrinkLinkUp_(Model $Model,$predId,$succId){
         $links=$Model->find('all',array(
             'joins'=>array(
                 array('table'=>$Model->useTable,'alias'=>'P','conditions'=>array('P.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred))
@@ -481,26 +297,6 @@ class BaseLinkBehavior extends ModelBehavior {
     }
     
     public function shrinkLinkDown(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLinkDown_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function shrinkLinkDown_(Model $Model,$predId,$succId){
         $links=$Model->find('all',array(
             'joins'=>array(
                 array('table'=>$Model->useTable,'alias'=>'S','conditions'=>array('S.'.$Model->__linkSucc.'='.$Model->alias.'.'.$Model->__linkSucc))
@@ -523,26 +319,6 @@ class BaseLinkBehavior extends ModelBehavior {
     }
     
     public function shrinkLinkAll(Model $Model){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLinkAll_($Model)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
- 
-    public function shrinkLinkAll_(Model $Model){
         $links=$Model->find('all',array(
             'joins'=>array(
                 array('table'=>$Model->useTable,'alias'=>'P','conditions'=>array('P,'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred)),

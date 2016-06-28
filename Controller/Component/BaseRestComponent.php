@@ -65,6 +65,7 @@ class BaseRestComponent extends Component {
             $page = addslashes($this->BaseRequest->get('page', 1,'get'));
             $page = $page ? $page : 1;
             $limit = addslashes($this->BaseRequest->get('limit', 20,'get'));
+            $offset=addslashes($this->BaseRequest->get('offset',null,'get'));
             $sorter = addslashes($this->BaseRequest->get('sorter', null,'get'));
             $search = addslashes($this->BaseRequest->get('search', null,'get'));
             $fields = addslashes($this->BaseRequest->get('fields', '','get'));
@@ -110,7 +111,9 @@ class BaseRestComponent extends Component {
                 $page = $pages;
             }
 
-            $offset = ($page - 1) * $limit;
+            if(!isset($offset)) {
+                $offset = ($page - 1) * $limit;
+            }
 
             if ($limit > 0) {
                 $query = Base::extend($query, [
@@ -125,6 +128,7 @@ class BaseRestComponent extends Component {
                 'page' => $page,
                 'pages' => $pages,
                 'count' => $count,
+                'offset'=>$offset,
                 'rows'=>[]
             ];
 
@@ -209,11 +213,11 @@ class BaseRestComponent extends Component {
     }
 
     public function save(Model $model,$data=[],$options=[],$query=[]){
-        return($this->__save('save',$data,$options,$query));
+        return($this->__save('save',$model,$data,$options,$query));
     }
 
     public function saveAll(Model $model,$data=[],$options=[],$query=[]){
-        return($this->__save('saveAll',$data,$options,$query));
+        return($this->__save('saveAll',$model,$data,$options,$query));
     }
 
     public function delete(Model $model,$cascade=true){
