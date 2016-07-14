@@ -70,9 +70,9 @@ class BaseRestComponent extends Component {
             $search = addslashes($this->BaseRequest->get('search', null,'get'));
             $fields = addslashes($this->BaseRequest->get('fields', '','get'));
 
-            $fields = explode(',', $fields);
+            if(!empty($fields)){
+                $fields = explode(',', $fields);
 
-            if (!empty($fields)) {
                 $query['fields'] = $fields;
             }
 
@@ -99,6 +99,7 @@ class BaseRestComponent extends Component {
             }
 
             $count = $model->find('count', $query);
+            $limit=(int)$limit;
 
             if ($limit > 0) {
                 $limit = $limit <= 1000 ? $limit : 1000;
@@ -111,9 +112,12 @@ class BaseRestComponent extends Component {
                 $page = $pages;
             }
 
-            if(!isset($offset)) {
-                $offset = ($page - 1) * $limit;
+            if($page<1){
+                $page=1;
             }
+
+
+            $offset = ($page - 1) * $limit;
 
             if ($limit > 0) {
                 $query = Base::extend($query, [
@@ -129,6 +133,9 @@ class BaseRestComponent extends Component {
                 'pages' => $pages,
                 'count' => $count,
                 'offset'=>$offset,
+                'limit'=>$limit,
+                'sorter'=>$sorter,
+                'search'=>$search,
                 'rows'=>[]
             ];
 
