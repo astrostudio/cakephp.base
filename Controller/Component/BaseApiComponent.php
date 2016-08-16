@@ -2,7 +2,7 @@
 App::uses('BaseQuery','Base.Model');
 App::uses('Base','Vendor/Base');
 
-class BaseRestComponent extends Component {
+class BaseApiComponent extends Component {
 
     const SUCCESS=200;
     const CREATED=201;

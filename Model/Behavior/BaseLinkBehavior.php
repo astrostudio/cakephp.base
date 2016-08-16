@@ -100,7 +100,11 @@ class BaseLinkBehavior extends ModelBehavior {
         
         if($extendUp){
             if($extendDown){
-                if(!$this->extendLink($Model,$predId,$succId)){
+                if(!$this->extendLinkUp($Model,$predId,$succId)){
+                    return(false);
+                }
+
+                if(!$this->extendLinkDown($Model,$predId,$succId)){
                     return(false);
                 }
             }
@@ -158,7 +162,7 @@ class BaseLinkBehavior extends ModelBehavior {
             return(true);
         }
         
-        return($this->deleteLink($link[$Model->alias][$Model->primaryKey],$cascade,$shrinkUp,$shrinkDown));
+        return($this->deleteLink($Model,$link[$Model->alias][$Model->primaryKey],$cascade,$shrinkUp,$shrinkDown));
     }
     
     public function extendLinkUp(Model $Model,$predId,$succId){
@@ -342,118 +346,240 @@ class BaseLinkBehavior extends ModelBehavior {
         
         return(true);
     }
-    
-    private function __extractLinkLevel(Model $Model,&$nodes,$preds,$query=array()){
-        $Node=ClassRegistry::init($this->__linkNode);
-        
-        $links=$Node->find('all',Base::extend($query,array(
+
+    private function __extractLinkSuccLevel(Model $Model,&$nodes,$preds,$query=[]){
+        $objects=ClassRegistry::init($Model->__linkNode);
+
+        $links=$objects->find('all',Base::extend([
             'recursive'=>-1,
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>$Model->alias,'conditions'=>array($Model->alias.'.'.$Model->__linkSucc.'='.$Node->alias.'.'.$Node->primaryKey))
-            ),
-            'conditions'=>array(
+            'joins'=>[
+               ['table'=>$Model->useTable,'alias'=>$Model->alias,'conditions'=>[
+                   $Model->alias.'.'.$Model->__linkSucc.'='.$objects->alias.'.'.$objects->primaryKey
+               ]]
+            ],
+            'conditions'=>[
                 $Model->alias.'.'.$Model->__linkPred.'<>'.$Model->alias.'.'.$Model->__linkSucc,
                 $Model->alias.'.'.$Model->__linkPred=>$preds,
                 $Model->alias.'.'.$Model->__linkItem=>1
-            ),
-            'fields'=>array($Node->alias.'.*',$Model->alias.'.*')
-        )));
-                
+            ],
+            'fields'=>[$Model->alias.'.*',$objects->alias.'.*']
+        ],$query));
+
         if(empty($links)){
             return(false);
         }
-        
-        $preds=array();
-        
+
+        $preds=[];
+
         foreach($links as $link){
-            $nodes[$link[$Node->alias][$Node->primaryKey]]=array();
-            $preds[]=$link[$Node->alias][$Node->primaryKey];
-            $nodes[$link[$Model->alias][$Model->__linkPred]][$link[$Node->alias][$Node->primaryKey]]=$link;
+            if(empty($nodes[$link[$objects->alias][$objects->primaryKey]])){
+                $link['succs']=[];
+                $nodes[$link[$objects->alias][$objects->primaryKey]]=$link;
+            }
+
+            $preds[]=$link[$objects->alias][$objects->primaryKey];
+            $nodes[$link[$Model->alias][$Model->__linkPred]]['succs'][]=$link;
         }
-        
-        $this->__extractLinkLevel($Model,$nodes,$preds,$query);
+
+        $this->__extractLinkSuccLevel($Model,$nodes,$preds,$query);
+
+        return(true);
     }
-    
-    private function __extractLinkNode(&$nodes,$nodeId){
-        $items=array();
-        
+
+    private function __extractLinkSuccTree(Model $Model,$nodes,$nodeId){
+        $objects=ClassRegistry::init($Model->__linkNode);
+        $items=[];
+
         if(!empty($nodes[$nodeId])){
-            foreach($nodes[$nodeId] as $id=>$item){
-                $items[$id]=$item;
+            foreach($nodes[$nodeId]['succs'] as &$succ){
+                $succ['succs']=$this->__extractLinkSuccTree($Model,$nodes,$succ[$objects->alias][$objects->primaryKey]);
+                $items[$succ[$objects->alias][$objects->primaryKey]]=$succ;
             }
         }
-        
+
         return($items);
     }
-    
-    private function __extractLinkRoot(Model $Model,$query=array()){
-        $Node=ClassRegistry::init($this->__linkNode);
-        
-        $roots=$Node->find('all',Base::extend($query,array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>$Model->alias,'type'=>'LEFT','conditions'=>array($Model->alias.'.'.$Model->__linkPred.'<>'.$Model->alias.'.'.$Model->__linkSucc,$Model->alias.'.'.$Model->__linkSucc.'='.$Node->alias.'.'.$Node->primaryKey))
-            ),
-            'conditions'=>array(
+
+    private function __extractLinkRoot(Model $Model,$query=[]){
+        $objects=ClassRegistry::init($Model->__linkNode);
+
+        $roots=$objects->find('all',Base::extend([
+            'recursive'=>-1,
+            'joins'=>[
+                ['table'=>$Model->useTable,'alias'=>$Model->alias,'type'=>'LEFT','conditions'=>[
+                    $Model->alias.'.'.$Model->__linkPred.'<>'.$Model->alias.'.'.$Model->__linkSucc,
+                    $Model->alias.'.'.$Model->__linkSucc.'='.$objects->alias.'.'.$objects->primaryKey
+                ]]
+            ],
+            'conditions'=>[
                 $Model->alias.'.'.$Model->primaryKey.' is null'
-            ),
-            'fields'=>array($Node->alias.'.*')
-        )));
-        
+            ],
+            'fields'=>[$Model->alias.'.*',$objects->alias.'.*']
+        ],$query));
+
         return($roots);
     }
-    
-    public function extractLinkTree(Model $Model,$query=array(),$nodeId=null){
-        $Node=ClassRegistry::init($this->__linkNode);
 
-        if($nodeId){            
-            $node=$Node->find('first',Base::extend($query,array(
-                'conditions'=>array(
-                    $Node->alias.'.'.$Node->primaryKey=>$nodeId
-                ),
-                'fields'=>array($Node->alias.'.*')
-            )));
-            
+    public function extractLinkSucc(Model $Model,$nodeId=null,$query=[]){
+        $objects=ClassRegistry::init($Model->__linkNode);
+
+        if($nodeId){
+            $node=$objects->find('first',Base::extend([
+                'recursive'=>-1,
+                'conditions'=>[
+                    $objects->alias.'.'.$objects->primaryKey=>$nodeId
+                ]
+            ],$query));
+
             if(empty($node)){
                 return(false);
             }
-            
-            $nodes=array();
-            $this->__extractLinkLevel($Model,$nodes,array($nodeId),$query);
-            $node['nodes']=$this->__extractLinkNode($nodes,$nodeId);
-            
+
+            $node['succs']=[];
+            $nodes=[$node];
+            $this->__extractLinkSuccLevel($Model,$nodes,[$nodeId],$query);
+            $node['succs']=$this->__extractLinkSuccTree($Model,$nodes,$nodeId);
+
             return($node);
         }
-        
-        $roots=$this->__extractLinkRoot($Model,$query);        
-        $preds=array();
-        
+
+        $roots=$this->__extractLinkRoot($Model,$query);
+
+        $nodes=[];
+        $preds=[];
+
         foreach($roots as $root){
-            $preds[]=$root[$Node->alias]['id'];
+            $preds[]=$root[$objects->alias][$objects->primaryKey];
+            $root['succs']=[];
+            $nodes[$root[$objects->alias][$objects->primaryKey]]=$root;
         }
-        
-        $nodes=array();
-        
-        $this->__extractLinkLevel($Model,$nodes,$preds,$query);
-        
+
+        $this->__extractLinkSuccLevel($Model,$nodes,$preds,$query);
+
         foreach($roots as &$root){
-            $root['nodes']=$this->__extractLinkNode($nodes,$root[$Node->alias][$Node->primaryKey]);
+            $root['succs']=$this->__extractLinkSuccTree($Model,$nodes,$root[$objects->alias][$objects->primaryKey]);
         }
-        
+
         return($roots);
     }
-    
-    public function extractLinkSiblings(Model $Model,$nodeId,$otherNodeId){
-        $count=$Model->find('count',array(
+
+    private function __extractLinkLeaf(Model $Model,$query=[]){
+        $objects=ClassRegistry::init($Model->__linkNode);
+
+        $leafs=$objects->find('all',Base::extend([
             'recursive'=>-1,
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'Other'.$Model->alias,'conditions'=>array('Other'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred))
-            ),
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkSucc=>$nodeId,
-                'Other'.$Model->alias.'.'.$Model->__linkSucc=>$otherNodeId,
-            )
-        ));
-        
-        return($count>0);
+            'joins'=>[
+                ['table'=>$Model->useTable,'alias'=>$Model->alias,'type'=>'LEFT','conditions'=>[
+                    $Model->alias.'.'.$Model->__linkPred.'<>'.$Model->alias.'.'.$Model->__linkSucc,
+                    $Model->alias.'.'.$Model->__linkPred.'='.$objects->alias.'.'.$objects->primaryKey
+                ]]
+            ],
+            'conditions'=>[
+                $Model->alias.'.'.$Model->primaryKey.' is null'
+            ],
+            'fields'=>[$Model->alias.'.*',$objects->alias.'.*']
+        ],$query));
+
+        return($leafs);
     }
+
+    private function __extractLinkPredLevel(Model $Model,&$nodes,$succs,$query=[]){
+        $objects=ClassRegistry::init($Model->__linkNode);
+
+        $links=$objects->find('all',Base::extend([
+            'recursive'=>-1,
+            'joins'=>[
+                ['table'=>$Model->useTable,'alias'=>$Model->alias,'conditions'=>[
+                    $Model->alias.'.'.$Model->__linkPred.'='.$objects->alias.'.'.$objects->primaryKey
+                ]]
+            ],
+            'conditions'=>[
+                $Model->alias.'.'.$Model->__linkPred.'<>'.$Model->alias.'.'.$Model->__linkSucc,
+                $Model->alias.'.'.$Model->__linkSucc=>$succs,
+                $Model->alias.'.'.$Model->__linkItem=>1
+            ],
+            'fields'=>[$Model->alias.'.*',$objects->alias.'.*']
+        ],$query));
+
+        if(empty($links)){
+            return(false);
+        }
+
+        $succs=[];
+
+        foreach($links as $link){
+            if(empty($nodes[$link[$objects->alias][$objects->primaryKey]])){
+                $link['preds']=[];
+                $nodes[$link[$objects->alias][$objects->primaryKey]]=$link;
+            }
+
+            $succs[]=$link[$objects->alias][$objects->primaryKey];
+            $nodes[$link[$Model->alias][$Model->__linkSucc]]['preds'][]=$link;
+        }
+
+        $this->__extractLinkPredLevel($Model,$nodes,$succs,$query);
+
+        return(true);
+    }
+
+    private function __extractLinkPredTree(Model $Model,$nodes,$nodeId){
+        $objects=ClassRegistry::init($Model->__linkNode);
+        $items=[];
+
+        if(!empty($nodes[$nodeId])){
+            foreach($nodes[$nodeId]['preds'] as &$pred){
+                $pred['preds']=$this->__extractLinkPredTree($Model,$nodes,$pred[$objects->alias][$objects->primaryKey]);
+                $items[$pred[$objects->alias][$objects->primaryKey]]=$pred;
+            }
+        }
+
+        return($items);
+    }
+
+    public function extractLinkPred(Model $Model,$nodeId=null,$query=[]){
+        $objects=ClassRegistry::init($Model->__linkNode);
+
+        if($nodeId){
+            $node=$objects->find('first',Base::extend([
+                'recursive'=>-1,
+                'conditions'=>[
+                    $objects->alias.'.'.$objects->primaryKey=>$nodeId
+                ]
+            ],$query));
+
+            if(empty($node)){
+                return(false);
+            }
+
+            $node['preds']=[];
+            $nodes=[
+                $nodeId=>$node
+            ];
+            $this->__extractLinkPredLevel($Model,$nodes,[$nodeId],$query);
+
+            $node['preds']=$this->__extractLinkPredTree($Model,$nodes,$nodeId);
+
+            return($node);
+        }
+
+        $leafs=$this->__extractLinkLeaf($Model,$query);
+
+        $nodes=[];
+        $succs=[];
+
+        foreach($leafs as $leaf){
+            $succs[]=$leaf[$objects->alias][$objects->primaryKey];
+            $leaf['preds']=[];
+            $nodes[$leaf[$objects->alias][$objects->primaryKey]]=$leaf;
+        }
+
+        $this->__extractLinkPredLevel($Model,$nodes,$succs,$query);
+
+        foreach($leafs as &$leaf){
+            $leaf['preds']=$this->__extractLinkPredTree($Model,$nodes,$leaf[$objects->alias][$objects->primaryKey]);
+        }
+
+        return($leafs);
+    }
+
 }

@@ -77,40 +77,68 @@ class BaseHelper extends AppHelper {
         
         return($surl);        
     }
-    
-    
-    private $buffers=array();
-    private $bufferName=null;
-    
-    public function start($name='default',$clear=true){
-        if(!empty($this->bufferName)){
-            throw new Exception('BaseHelper::start: Buffer not ended.');
+
+
+    private $bufferStack=[];
+    private $bufferLevel=false;
+    private $bufferAlias=false;
+
+    public function start($alias='default',$clear=true){
+        if(empty($this->bufferLevel)){
+            $this->bufferLevel=[];
         }
-        
-        $this->bufferName=$name;
-        
-        if($clear){
-            unset($this->buffers[$this->bufferName]);
+
+        if(!empty($this->bufferAlias)){
+            array_push($this->bufferStack,['alias'=>$this->bufferAlias,'level'=>$this->bufferLevel]);
+
+            $this->bufferLevel=[];
+            $this->bufferAlias=$alias;
+            $this->bufferLevel[$this->bufferAlias]='';
         }
-        
+        else {
+            $this->bufferAlias=$alias;
+
+            if($clear or empty($this->bufferLevel[$this->bufferAlias])){
+                $this->bufferLevel[$this->bufferAlias]='';
+            }
+        }
+
         if(!ob_start()){
             throw new Exception('BaseHelper::start: Start error.');
         }
-        
+
         return(true);
     }
-    
-    public function fetch($name='default'){
-        return(Hash::get($this->buffers,$name));
-    }
-    
+
     public function end(){
-        if(empty($this->bufferName)){
-            throw new Exception('BaseHelper::start: Buffer not started.');
+        if(empty($this->bufferLevel)){
+            throw new Exception('BaseHelper::start:  Buffer not started.');
         }
-    
-        $this->buffers[$this->bufferName]=Hash::get($this->buffers,$this->bufferName,'').ob_get_clean();        
-        $this->bufferName=null;
+
+        if(empty($this->bufferAlias)) {
+            if(empty($this->bufferStack)) {
+                throw new Exception('BaseHelper::start:  Buffer not started.');
+            }
+
+            $item=array_pop($this->bufferStack);
+            $this->bufferLevel=$item['level'];
+            $this->bufferAlias=$item['alias'];
+        }
+
+        $this->bufferLevel[$this->bufferAlias].=ob_get_clean();
+        $this->bufferAlias=false;
+    }
+
+    public function fetch($alias='default'){
+        if(empty($this->bufferLevel)){
+            return('');
+        }
+
+        if(empty($this->bufferLevel[$alias])){
+            return('');
+        }
+
+        return($this->bufferLevel[$alias]);
     }
     
     public function clear($name='default'){
@@ -156,6 +184,116 @@ class BaseHelper extends AppHelper {
         $output.='</div>';
         
         return($this->output($output));
+    }
+
+    private $__elementBuffer=[];
+
+    public function _class($class=null){
+        if(is_string($class)){
+            return($class);
+        }
+
+        if(!is_array($class)){
+            return('');
+        }
+
+        $s='';
+        $d='';
+
+        if(is_array($class)){
+            foreach($class as $c){
+                $s.=$d;
+                $s.=$this->_class($c);
+                $d=' ';
+            }
+        }
+        else if(is_string($class)){
+            $s=$class;
+        }
+
+        return($s);
+    }
+
+    public function _style($style=null){
+        if(is_string($style)){
+            return($style);
+        }
+
+        if(!is_array($style)){
+            return('');
+        }
+
+        $s='';
+
+        if(is_array($style)){
+            foreach($style as $name=>$value){
+                $s.=$name.':'.$value;
+            }
+        }
+        else if(is_string($style)){
+            $s=$style;
+        }
+
+        return($s);
+    }
+
+    public function _attrs(array $attrs=[]){
+        $s='';
+        $d='';
+
+        foreach($attrs as $name=>$value){
+            $s.=$d;
+
+            switch($name){
+                case 'class':
+                    $value=$this->_class($value);
+
+                    break;
+                case 'style':
+                    $value=$this->_style($value);
+
+                    break;
+            }
+
+            $s.=$name.'="'.htmlspecialchars($value).'"';
+            $d=' ';
+        }
+
+        return($s);
+    }
+
+    public function _open($name='div',$attrs=[]){
+        $s='<'.$name;
+
+        if(!empty($attrs)){
+            $s.=' '.$this->_attrs($attrs);
+        }
+
+        return($s);
+    }
+
+    public function open($name='div',$attrs=[]){
+        array_push($this->__elementBuffer,$name);
+
+        return($this->_open($name,$attrs).'>');
+    }
+
+    public function close(){
+        if(empty($this->__elementBuffer)){
+            throw new Exception('BaseHelper::close: Stack empty!');
+        }
+
+        $name=array_pop($this->__elementBuffer);
+
+        return('</'.$name.'>');
+    }
+
+    public function simple($name='div',$attrs=[]){
+        return($this->_open($name,$attrs).'/>');
+    }
+
+    public function element($name='div',$attrs=[],$body=''){
+        return($this->open($name,$attrs).$body.$this->close());
     }
 }
 ?>
