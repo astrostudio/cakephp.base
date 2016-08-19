@@ -84,42 +84,71 @@ class BaseHelper extends Helper {
         
         return($surl);        
     }
-    
-    
-    private $buffers=array();
-    private $bufferName=null;
-    
-    public function start($name='default',$clear=true){
-        if(!empty($this->bufferName)){
-            throw new Exception('BaseHelper::start: Buffer not ended.');
+
+
+    private $bufferStack=[];
+    private $bufferLevel=false;
+    private $bufferAlias=false;
+
+    public function start($alias='default',$clear=true){
+        if(empty($this->bufferLevel)){
+            $this->bufferLevel=[];
         }
-        
-        $this->bufferName=$name;
-        
-        if($clear){
-            unset($this->buffers[$this->bufferName]);
+
+        if(!empty($this->bufferAlias)){
+            array_push($this->bufferStack,['alias'=>$this->bufferAlias,'level'=>$this->bufferLevel]);
+
+            $this->bufferLevel=[];
+            $this->bufferAlias=$alias;
+            $this->bufferLevel[$this->bufferAlias]='';
         }
-        
+        else {
+            $this->bufferAlias=$alias;
+
+            if($clear or empty($this->bufferLevel[$this->bufferAlias])){
+                $this->bufferLevel[$this->bufferAlias]='';
+            }
+        }
+
         if(!ob_start()){
             throw new Exception('BaseHelper::start: Start error.');
         }
-        
+
         return(true);
     }
-    
-    public function fetch($name='default'){
-        return(Hash::get($this->buffers,$name));
-    }
-    
+
     public function end(){
-        if(empty($this->bufferName)){
-            throw new Exception('BaseHelper::start: Buffer not started.');
+        if(empty($this->bufferLevel)){
+            throw new Exception('BaseHelper::start:  Buffer not started.');
         }
-    
-        $this->buffers[$this->bufferName]=Hash::get($this->buffers,$this->bufferName,'').ob_get_clean();        
-        $this->bufferName=null;
+
+        if(empty($this->bufferAlias)) {
+            if(empty($this->bufferStack)) {
+                throw new Exception('BaseHelper::start:  Buffer not started.');
+            }
+
+            $item=array_pop($this->bufferStack);
+            $this->bufferLevel=$item['level'];
+            $this->bufferAlias=$item['alias'];
+        }
+
+        $this->bufferLevel[$this->bufferAlias].=ob_get_clean();
+        $this->bufferAlias=false;
     }
-    
+
+    public function fetch($alias='default'){
+        if(empty($this->bufferLevel)){
+            return('');
+        }
+
+        if(empty($this->bufferLevel[$alias])){
+            return('');
+        }
+
+        return($this->bufferLevel[$alias]);
+    }
+
+
     public function clear($name='default'){
         unset($this->buffers[$name]);
     }

@@ -2,7 +2,7 @@
 namespace Base\Controller\Component;
 
 use Cake\Controller\Component;
-use Cake\Event;
+use Cake\Event\Event;
 use Base\Base;
 use Base\Controller\Component\BaseRequest\IBaseRequestHandler;
 use Base\Controller\Component\BaseRequest\ParamRequestHandler;
