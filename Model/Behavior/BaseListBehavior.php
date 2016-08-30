@@ -25,7 +25,7 @@ class BaseListBehavior extends Behavior {
 
         foreach($this->__listScope as $field){
             $scope[]=[
-                $this->_table->alias().'.'.$field=>$values[$field]
+                $field=>$values[$field]
             ];
         }
 
@@ -35,7 +35,7 @@ class BaseListBehavior extends Behavior {
     private function __max($scope=[]){
         $max=$this->_table
             ->find()
-            ->select(['max'=>'MAX('.$this->_table->alias().'.'.$this->__listField.')'])
+            ->select(['max'=>'MAX('.$this->__listField.')'])
             ->where($scope)
             ->first()
             ->toArray();
@@ -113,8 +113,8 @@ class BaseListBehavior extends Behavior {
             if(!$this->_table->query()->update()->set(
                 new QueryExpression($this->__listField.'='.$this->__listField.' + 1')
             )->where(Base::extend($scope, [
-                $this->_table->alias() . '.' . $this->_table->primaryKey() . '<>' . $entity->id,
-                $this->_table->alias() . '.' . $this->__listField . '>=' . $entity->get($this->__listField)
+                $this->_table->primaryKey() . '<>' . $entity->id,
+                $this->__listField . '>=' . $entity->get($this->__listField)
             ]))->execute()) {
                 return (false);
             }
@@ -130,7 +130,7 @@ class BaseListBehavior extends Behavior {
                 if(!$this->_table->query()->update()->set(
                     new QueryExpression($this->__listField.'='.$this->__listField.' - 1')
                 )->where(Base::extend($oldScope,[
-                    $this->_table->alias().'.'.$this->__listField.'>'.$oldPosition
+                    $this->__listField.'>'.$oldPosition
                 ]))->execute()){
                     return(false);
                 }
@@ -138,8 +138,8 @@ class BaseListBehavior extends Behavior {
                 if(!$this->_table->query()->update()->set(
                     new QueryExpression($this->__listField.'='.$this->__listField.' + 1')
                 )->where(Base::extend($scope, [
-                    $this->_table->alias() . '.' . $this->_table->primaryKey() . '<>' . $entity->id,
-                    $this->_table->alias() . '.' . $this->__listField . '>=' . $entity->get($this->__listField)
+                    $this->_table->primaryKey() . '<>' . $entity->id,
+                    $this->__listField . '>=' . $entity->get($this->__listField)
                 ]))->execute()) {
                     return (false);
                 }
@@ -155,18 +155,18 @@ class BaseListBehavior extends Behavior {
                         if (!$this->_table->query()->update()->set(
                             new QueryExpression($this->__listField . ' = ' . $this->__listField . ' + 1')
                         )->where(Base::extend($scope, [
-                            $this->_table->alias().'.'.$this->_table->primaryKey().'<>'.$entity->id,
-                            $this->_table->alias() . '.' . $this->__listField . '>=' . $position,
-                            $this->_table->alias() . '.' . $this->__listField . '<' . $oldPosition
+                            $this->_table->primaryKey().'<>'.$entity->id,
+                            $this->__listField . '>=' . $position,
+                            $this->__listField . '<' . $oldPosition
                         ]))->execute()
                         ) {
                             return (false);
                         }
                     } else {
                         if (!$this->_table->query()->update()->set(new QueryExpression($this->__listField . ' = ' . $this->__listField . ' - 1'))->where(Base::extend($scope, [
-                            $this->_table->alias().'.'.$this->_table->primaryKey().'<>'.$entity->id,
-                            $this->_table->alias() . '.' . $this->__listField . '>' . $oldPosition,
-                            $this->_table->alias() . '.' . $this->__listField . '<=' . $position
+                            $this->_table->primaryKey().'<>'.$entity->id,
+                            $this->__listField . '>' . $oldPosition,
+                            $this->__listField . '<=' . $position
                         ]))->execute()
                         ) {
                             return (false);
@@ -183,8 +183,10 @@ class BaseListBehavior extends Behavior {
         $position=$entity->get($this->__listField);
         $scope=$this->__scope($entity->extract($this->__listScope));
 
-        if(!$this->_table->query()->update()->set(new QueryExpression($this->__listField.'='.$this->__listField.' - 1'))->where(Base::extend($scope,[
-            $this->_table->alias().'.'.$this->__listField.'>'.$position
+        if(!$this->_table->query()->update()->set(
+            new QueryExpression($this->__listField.'='.$this->__listField.' - 1')
+        )->where(Base::extend($scope,[
+            $this->__listField.'>'.$position
         ]))->execute()){
             return(false);
         }
