@@ -1,19 +1,15 @@
 {
-    "name": "lison/cakephp.base",
+    "name": "astrostudio/cakephp.base",
     "type": "cakephp-plugin",
     "require": {
         "composer/installers": "*",
-        "lison/php.base": "2.0.*"
+        "astrostudio/php.base": "2.0.*"
     },
     "autoload": {
         "psr-4": {
             "Base\\": "."
         }
     },
-    "repositories": [{
-        "type": "git",
-        "url": "http://git.lison.nazwa.pl/php.base.git"
-    }],
     "extra": {
         "installer-name": "cakephp.base"
     }
