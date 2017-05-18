@@ -33,6 +33,7 @@ class BaseApiComponent extends Component {
 
     public function json($data=null,$status=200){
         return(new Response([
+            'type'=>'json',
             'body'=>json_encode($data),
             'status'=>$status
         ]));
