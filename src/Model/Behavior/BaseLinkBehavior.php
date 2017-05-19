@@ -1,683 +1,506 @@
 <?php
-App::uses('Base','Vendor/Base');
+namespace Base\Model\Behavior;
 
-class BaseLinkBehavior extends ModelBehavior {
+use Cake\ORM\Behavior;
+use Cake\ORM\TableRegistry;
+use Cake\Utility\Hash;
 
-    var $settings=array();
-    
-    var $deleting=array();
-    
-    public function setup(Model $Model,$settings=array()) {
-        if(!isset($this->settings[$Model->alias])){
-            $this->settings[$Model->alias]=array(
-                'pred'=>'pred_id',
-                'succ'=>'succ_id',
-                'item'=>'item',
-                'node'=>null
-            );
-        }
-        
-        $this->settings[$Model->alias]=array_merge($this->settings[$Model->alias],(array)$settings);
-        
-        $Model->__linkPred=$this->settings[$Model->alias]['pred'];
-        $Model->__linkSucc=$this->settings[$Model->alias]['succ'];
-        $Model->__linkItem=$this->settings[$Model->alias]['item'];
-        $Model->__linkNode=$this->settings[$Model->alias]['node'];
+class BaseLinkBehavior extends Behavior {
+
+    private $__linkPred=null;
+    private $__linkSucc=null;
+    private $__linkItem=null;
+
+    public function initialize(array $config)
+    {
+        $this->__linkPred=Hash::get($config,'pred','pred_id');
+        $this->__linkSucc=Hash::get($config,'succ','succ_id');
+        $this->__linkItem=Hash::get($config,'item','item');
+        $this->__linkNode=Hash::get($config,'node',null);
     }
-    
-    public function loadLink(Model $Model,$predId,$succId){
-        $link=$Model->find('first',array(
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkPred=>$predId,
-                $Model->alias.'.'.$Model->__linkSucc=>$succId
-            )
-        ));
-        
+
+    public function loadLink($predId,$succId){
+        $link=$this->_table->find()->where([
+            $this->_table->alias().'.'.$this->__linkPred=>$predId,
+            $this->_table->alias().'.'.$this->__linkSucc=>$succId,
+        ])->first();
+
         return($link);
     }
-    
-    public function checkLink(Model $Model,$predId,$succId,$transition=true){
-        $count=$Model->find('count',array(
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkPred=>$predId,
-                $Model->alias.'.'.$Model->__linkSucc=>$succId
-            )
-        ));
-        
-        if(!empty($count)){
+
+    public function checkLink($predId,$succId,$transition=true){
+        $count=$this->_table->find()->where([
+            $this->_table->alias().'.'.$this->__linkPred=>$predId,
+            $this->_table->alias().'.'.$this->__linkSucc=>$succId
+        ])->count();
+
+        if($count>0){
             return(true);
         }
-        
+
         if($transition){
-            $count=$Model->find('count',array(
-                'joins'=>array(
-                    array('table'=>$Model->useTable,'alias'=>'Succ'.$Model->alias,'conditions'=>array('Succ'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkSucc))
-                ),
-                'conditions'=>array(
-                    $Model->alias.'.'.$Model->__linkPred=>$predId,
-                    'Succ'.$Model->alias.'.'.$Model->__linkSucc=>$succId
-                )
-            ));
-            
+            $count=$this->_table->find()->join([
+                'table'=>$this->_table->table(),
+                'alias'=>'Succ'.$this->_table->alias(),
+                'conditions'=>['Succ'.$this->_table->alias().'.'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkSucc]
+            ])->where([
+                $this->_table->alias().'.'.$this->__linkPred=>$predId,
+                'Succ'.$this->_table->alias().'.'.$this->__linkSucc=>$succId
+            ])->count();
+
             if($count>0){
                 return(true);
             }
         }
-                    
+
         return(false);
     }
-    
-    public function appendLink(Model $Model,$predId,$succId,$cycles=false,$transition=true,$extendUp=false,$extendDown=false){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        $id=$this->appendLink_($Model,$predId,$succId,$cycles,$transition,$extendUp,$extendDown);
-        
-        if(!$id){
-            $ds->rollback();
-            
-            return(false);
-        }
-                
-        if(!$ds->commit()){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        return($id);
-    }
 
-    public function appendLink_(Model $Model,$predId,$succId,$cycles=false,$transition=true,$extendUp=false,$extendDown=false){
-        if(!$cycles){
-            if($this->checkLink($Model,$succId,$predId,$transition)){
-                return(false);
+    public function appendLink($predId,$succId,array $options=[])
+    {
+        $options = array_merge(['cycles' => false, 'transition' => true, 'extendUp' => false, 'extendDown' => false],$options);
+
+        if (!$options['cycles']) {
+            if ($this->checkLink($succId, $predId, $options['transition'])) {
+                return (false);
             }
         }
-        
-        $link=$Model->find('first',array(
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkPred=>$predId,
-                $Model->alias.'.'.$Model->__linkSucc=>$succId
-            )
-        ));
-        
-        if(empty($link)){
-            $link=array(
-                $Model->alias=>array(
-                    $Model->__linkPred=>$predId,
-                    $Model->__linkSucc=>$succId
-                )
-            );
 
-            $Model->create();
+        $link = $this->loadLink($predId, $succId);
+
+        if (!$link) {
+            $link=$this->_table->newEntity([
+                $this->__linkPred=>$predId,
+                $this->__linkSucc=>$succId
+            ]);
         }
-        
-        $link[$Model->alias][$Model->__linkItem]=1;
 
-        if(!$Model->save($link)){
+        $link->set($this->__linkItem,1);
+
+        if(!$this->_table->save($link)){
             return(false);
         }
-        
-        if($extendUp){
-            if($extendDown){
-                if(!$this->extendLink_($Model,$predId,$succId)){
+
+        if($options['extendUp']){
+            if($options['extendDown']){
+                if(!$this->extendLink($predId,$succId)){
                     return(false);
                 }
             }
             else {
-                if(!$this->extendLinkUp_($Model,$predId,$succId)){
+                if(!$this->extendLinkUp($predId,$succId)){
                     return(false);
                 }
             }
         }
-        else if($extendDown){
-            if(!$this->extendLinkDown_($Model,$predId,$succId)){
+        else if($options['extendDown']){
+            if(!$this->extendLinkDown($predId,$succId)){
                 return(false);
             }
         }
-        
-        return($Model->id);        
+
+        return($link->id);
     }
 
-    public function deleteLink(Model $Model,$id,$cascade=false,$shrinkUp=false,$shrinkDown=false){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
+    public function deleteLink($id,array $options=[]){
+        $options=array_merge(['cascade'=>false,'shrinkUp'=>false,'shrinkDown'=>false],$options);
+        $link=$this->_table->get($id);
+
+        if(!$link){
             return(false);
         }
-        
-        if(!$this->deleteLink_($Model,$id,$cascade,$shrinkUp,$shrinkDown)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function deleteLink_(Model $Model,$id,$cascade=false,$shrinkUp=false,$shrinkDown=false){
-        $Model->recursive=-1;
-        
-        $link=$Model->read(null,$id);
-                
-        if(empty($link)){
-            return(false);
-        }
-        
-        if($shrinkUp){
-            if($shrinkDown){
-                if(!$this->shrinkLink_($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
+
+        if($options['shrinkUp']){
+            if($options['shrinkDown']){
+                if(!$this->shrinkLink($link->get($this->__linkPred),$link->get($this->__linkSucc))){
                     return(false);
                 }
             }
-            else if(!$this->shrinkLinkUp_($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
-                return(false);
-            }            
-        }
-        else if($shrinkDown){
-            if(!$this->shrinkLinkDown_($Model,$link[$Model->alias][$Model->__linkPred],$link[$Model->alias][$Model->__linkSucc])){
-                return(false);
-            }            
-        }
-        
-        return($this->delete($id,$cascade));
-    }
-    
-    public function removeLink(Model $Model,$predId,$succId,$cascade=false,$shrinkUp=false,$shrinkDown=false,$force=true){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->removeLink_($Model,$predId,$succId,$cascade,$shrinkUp,$shrinkDown,$force)){
-            $ds->rolback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function removeLink_(Model $Model,$predId,$succId,$cascade=false,$shrinkUp=false,$shrinkDown=false,$force=true){
-        $link=$this->loadLink($Model,$predId,$succId);
-        
-        if(empty($link)){
-            if($force){
+            else if(!$this->shrinkLinkUp($link->get($this->__linkPred),$link->get($this->__linkSucc))){
                 return(false);
             }
-            
+        }
+        else if($options['shrinkDown']){
+            if(!$this->shrinkLinkDown($link->get($this->__linkPred),$link->get($this->__linkSucc))){
+                return(false);
+            }
+        }
+
+        return($this->_table->delete($link,$options));
+    }
+
+    public function removeLink($predId,$succId,array $options=[]){
+        $link=$this->loadLink($predId,$succId);
+
+        if(!$link){
+            if(!empty($options['force'])){
+                return(false);
+            }
+
             return(true);
         }
-        
-        return($this->deleteLink_($link[$Model->alias][$Model->primaryKey],$cascade,$shrinkUp,$shrinkDown));
+
+        return($this->deleteLink($link->get($this->_table->primaryKey()),$options));
     }
-    
-    public function extendLinkUp(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLinkUp_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function extendLinkUp_(Model $Model,$predId,$succId){
-        $links=$Model->find('all',array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'Item'.$Model->alias,'type'=>'LEFT','conditions'=>array('Item'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred,'Item'.$Model->alias.'.'.$Model->__linkSucc.'='.$succId))
-            ),
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkSucc=>$predId,
-                'Item'.$Model->alias.'.'.$Model->primaryKey.' is null'
-            ),
-            'fields'=>array($Model->alias.'.*')
-        ));
+
+    public function extendLinkUp($predId,$succId){
+        $links=$this->_table->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'Item'.$this->_table->alias(),
+            'type'=>'LEFT',
+            'conditions'=>[
+                'Item'.$this->_table->alias().'.'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkPred,'Item'.$this->_table->alias().'.'.$this->__linkSucc.'='.$succId
+            ]
+        ])->where([
+            $this->_table->alias().'.'.$this->__linkSucc=>$predId,
+            'Item'.$this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+        ])->select($this->_table)->all();
 
         foreach($links as $link){
-            $Model->create();
-            
-            if(!$Model->save(array(
-                $Model->alias=>array(
-                    $Model->__linkPred=>$link[$Model->alias][$Model->__linkPred],
-                    $Model->__linkSucc=>$succId,
-                    $Model->__linkItem=>0,
-                )
-            ))){
+            $newLink=$this->_table->newEntity([
+                $this->__linkPred=>$link->get($this->__linkPred),
+                $this->__linkSucc=>$succId,
+                $this->__linkItem=>0
+            ]);
+
+            if(!$this->_table->save($newLink)){
                 return(false);
             }
         }
-        
-        return(true);
-    }
-    
-    public function extendLinkDown(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLinkDown_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function extendLinkDown_(Model $Model,$predId,$succId){
-        $links=$Model->find('all',array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'Item'.$Model->alias,'type'=>'LEFT','conditions'=>array('Item'.$Model->alias.'.'.$Model->__linkPred.'='.$predId,'Item'.$Model->alias.'.'.$Model->__linkSucc.'='.$Model->alias.'.'.$Model->__linkSucc))
-            ),
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkPred=>$succId,
-                'Item'.$Model->alias.'.'.$Model->primaryKey.' is null'
-            ),
-            'fields'=>array($Model->alias.'.*')
-        ));
 
-        foreach($links as $link){
-            $Model->create();
-            
-            if(!$Model->save(array(
-                $Model->alias=>array(
-                    $Model->__linkPred=>$predId,
-                    $Model->__linkSucc=>$link[$Model->alias][$Model->__linkSucc],
-                    $Model->__linkItem=>0,
-                )
-            ))){
-                return(false);
-            }
-        }
-        
-        return(true);
-    }
-    
-    public function extendLink(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLink_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function extendLinkAll(Model $Model){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->extendLinkAll_($Model)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function extendLinkAll_(Model $Model){
-        $links=$Model->find('all',array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'Succ'.$Model->alias,'conditions'=>array('Succ'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkSucc)),
-                array('table'=>$Model->useTable,'alias'=>'Item'.$Model->alias,'type'=>'LEFT','conditions'=>array('Item'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred,'Item'.$Model->alias.'.'.$Model->__linkSucc.'=Succ'.$Model->alias.'.'.$Model->__linkSucc))
-            ),
-            'conditions'=>array(
-                'Item'.$Model->alias.'.'.$Model->primaryKey.' is null'
-            ),
-            'fields'=>array($Model->alias.'.*','Succ'.$Model->alias.'.*')
-        ));
-
-        foreach($links as $link){
-            $Model->create();
-            
-            if(!$Model->save(array(
-                $Model->alias=>array(
-                    $Model->__linkPred=>$link[$Model->alias][$Model->__linkPred],
-                    $Model->__linkSucc=>$link['Succ'.$Model->alias][$Model->__linkSucc],
-                    $Model->__linkItem=>0,
-                )
-            ))){
-                return(false);
-            }
-        }
-        
         return(true);
     }
 
-    public function shrinkLink(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLink_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function shrinkLink_(Model $Model,$predId,$succId){
-        $links=$Model->find('all',array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'P','conditions'=>array('P.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred)),
-                array('table'=>$Model->useTable,'alias'=>'S','conditions'=>array(
-                    'S.'.$Model->__linkPred.'=P.'.$Model->__linkSucc,
-                    'S.'.$Model->__linkSucc.'='.$Model->alias.'.'.$Model->__linkSucc
-                ))
-            ),
-            'conditions'=>array(
-                'P.'.$Model->__linkSucc=>$predId,
-                'S.'.$Model->__linkSucc=>$succId,
-                $Model->alias.'.'.$Model->__linkItem=>0
-            ),
-            'fields'=>array($Model->alias.'.*')
-        ));
-        
-        foreach($links as $link){
-            if(!$Model->delete($link[$Model->alias][$Model->primaryKey])){
-                return(false);
-            }
-        }
-        
-        return(true);
-    }
-    
-    public function shrinkLinkUp(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLinkUp_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
-    }
-    
-    public function shrinkLinkUp_(Model $Model,$predId,$succId){
-        $links=$Model->find('all',array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'P','conditions'=>array('P.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred))
-            ),
-            'conditions'=>array(
-                'P.'.$Model->__linkSucc=>$predId,
-                $Model->alias.'.'.$Model->__LinkSucc=>$succId,
-                $Model->alias.'.'.$Model->__linkItem=>0
-            ),
-            'fields'=>array($Model->alias.'.*')
-        ));
+    public function extendLinkDown($predId,$succId){
+        $links=$this->_table->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'Item'.$this->_table->alias(),
+            'type'=>'LEFT',
+            'conditions'=>[
+                'Item'.$this->_table->alias().'.'.$this->__linkPred.'='.$predId,'Item'.$this->_table->alias().'.'.$this->__linkSucc.'='.$this->_table->alias().'.'.$this->__linkSucc
+            ]
+        ])->where([
+            $this->_table->alias().'.'.$this->__linkPred=>$succId,
+            'Item'.$this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+        ])->select($this->_table)->all();
 
         foreach($links as $link){
-            if(!$Model->delete($link[$Model->alias][$Model->primaryKey])){
+            $newLink=$this->_table->newEntity([
+                $this->__linkPred=>$predId,
+                $this->__linkSucc=>$link->get($this->__linkSucc),
+                $this->__linkItem=>0
+            ]);
+
+            if(!$this->_table->save($newLink)){
                 return(false);
             }
         }
-        
+
         return(true);
     }
-    
-    public function shrinkLinkDown(Model $Model,$predId,$succId){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLinkDown_($Model,$predId,$succId)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
+
+    public function extendLink($predId,$succId){
+        return($this->extendLinkUp($predId,$succId) and $this->extendLinkDown($predId,$succId));
     }
-    
-    public function shrinkLinkDown_(Model $Model,$predId,$succId){
-        $links=$Model->find('all',array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'S','conditions'=>array('S.'.$Model->__linkSucc.'='.$Model->alias.'.'.$Model->__linkSucc))
-            ),
-            'conditions'=>array(
-                'S.'.$Model->__linkPred=>$succId,
-                $Model->alias.'.'.$Model->__linkPred=>$predId,
-                $Model->alias.'.'.$Model->__linkItem=>0
-            ),
-            'fields'=>array($Model->alias.'.*')
-        ));
-        
+
+    public function extendLinkAll(){
+        $links=$this->_table->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'Succ'.$this->_table->alias(),
+            'conditions'=>[
+                'Succ'.$this->_table->alias().'.'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkSucc
+            ]
+        ])->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'Item'.$this->_table->table(),
+            'type'=>'LEFT',
+            'conditions'=>[
+                'Item'.$this->_table->alias().'.'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkPred,
+                'Item'.$this->_table->alias().'.'.$this->__linkSucc.'=Succ'.$this->_table->alias().'.'.$this->__linkSucc
+            ]
+        ])->where([
+            'Item'.$this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+        ])->select([$this->_table->alias().'.*','Succ'.$this->_table->alias().'.*'])->toArray();
+
         foreach($links as $link){
-            if(!$Model->delete($link[$Model->alias][$Model->primaryKey])){
+            $newLink=$this->_table->newEntity([
+                $this->__linkPred=>$link[$this->_table->alias()][$this->__linkPred],
+                $this->__linkSucc=>$link['Succ'.$this->_table->alias()][$this->__linkSucc],
+                $this->__linkItem=>0
+            ]);
+
+            if(!$this->_table->save($newLink)){
                 return(false);
             }
         }
-        
+
         return(true);
     }
-    
-    public function shrinkLinkAll(Model $Model){
-        $ds=$Model->getDataSource();
-        
-        if(!$ds->begin()){
-            return(false);
-        }
-        
-        if(!$this->shrinkLinkAll_($Model)){
-            $ds->rollback();
-            
-            return(false);
-        }
-        
-        if(!$ds->commit()){
-            return(false);
-        }
-        
-        return(true);
+
+    public function shrinkLink($predId,$succId){
+        return($this->shrinkLinkUp($predId,$succId) and $this->ShrinkLinkDown($predId,$succId));
     }
- 
-    public function shrinkLinkAll_(Model $Model){
-        $links=$Model->find('all',array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'P','conditions'=>array('P,'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred)),
-                array('table'=>$Model->useTable,'alias'=>'S','conditions'=>array(
-                    'S.'.$Model->__linkPred.'=P.'.$Model->__linkSucc,
-                    'S.'.$Model->__linkSucc.'='.$Model->alias.'.'.$Model->__linkSucc
-                ))
-            ),
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkItem=>0
-            ),
-            'fields'=>array($Model->alias.'.*')
-        ));
-              
-        
+
+    public function shrinkLinkUp($predId,$succId){
+        $links=$this->_table->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'P',
+            'conditions'=> ['P.'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkPred]
+        ])->where([
+            'P.'.$this->__linkSucc=>$predId,
+            $this->_table->alias().'.'.$this->__linkSucc=>$succId,
+            $this->_table->alias().'.'.$this->__linkItem=>0
+        ])->select($this->_table)->all();
+
         foreach($links as $link){
-            if(!$Model->delete($link[$Model->alias][$Model->primaryKey])){
+            if(!$this->_table->delete($link)){
                 return(false);
             }
         }
-        
+
         return(true);
     }
-    
-    private function __extractLinkLevel(Model $Model,&$nodes,$preds,$query=array()){
-        $Node=ClassRegistry::init($this->__linkNode);
-        
-        $links=$Node->find('all',Base::extend($query,array(
-            'recursive'=>-1,
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>$Model->alias,'conditions'=>array($Model->alias.'.'.$Model->__linkSucc.'='.$Node->alias.'.'.$Node->primaryKey))
-            ),
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkPred.'<>'.$Model->alias.'.'.$Model->__linkSucc,
-                $Model->alias.'.'.$Model->__linkPred=>$preds,
-                $Model->alias.'.'.$Model->__linkItem=>1
-            ),
-            'fields'=>array($Node->alias.'.*',$Model->alias.'.*')
-        )));
-                
+
+    public function shrinkLinkDown($predId,$succId){
+        $links=$this->_table->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'S',
+            'conditions'=>['S.'.$this->__linkSucc.'='.$this->_table->alias().'.'.$this->__linkSucc]
+        ])->where([
+            'S.'.$this->__linkPred=>$succId,
+            $this->_table->alias().'.'.$this->__linkPred=>$predId,
+            $this->_table->alias().'.'.$this->__linkItem=>0
+        ])->select($this->_table)->all();
+
+        foreach($links as $link){
+            if(!$this->_table->delete($link)){
+                return(false);
+            }
+        }
+
+        return(true);
+    }
+
+    public function shrinkLinkAll(){
+        $links=$this->_table->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'P',
+            'conditions'=>['P,'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkPred]
+        ])->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'S',
+            'conditions'=>[
+                'S.'.$this->__linkPred.'=P.'.$this->__linkSucc,
+                'S.'.$this->__linkSucc.'='.$this->_table->alias().'.'.$this->__linkSucc
+            ]
+        ])->where([
+            $this->_table->alias().'.'.$this->__linkItem=>0
+        ])->select([$this->_table->alias().'.*'])->all();
+
+        foreach($links as $link){
+            if(!$this->_table->delete($link)){
+                return(false);
+            }
+        }
+
+        return(true);
+    }
+
+    private function __extractLinkSuccLevel(&$nodes,$preds){
+        $objects=TableRegistry::get($this->__linkNode);
+
+        $links=$objects->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>$this->_table->alias(),
+            'conditions'=>[
+                $this->_table->alias().'.'.$this->__linkSucc.'='.$objects->alias().'.'.$objects->primaryKey()
+            ]
+        ])->where([
+            $this->_table->alias().'.'.$this->__linkPred.'<>'.$this->_table->alias().'.'.$this->__linkSucc,
+            $this->_table->alias().'.'.$this->__linkPred.' IN'=>$preds,
+            $this->_table->alias().'.'.$this->__linkItem=>1
+        ])->select($objects)->select([$this->_table->alias().'.'.$this->__linkPred])->toArray();
+
         if(empty($links)){
             return(false);
         }
-        
-        $preds=array();
-        
+
+        $preds=[];
+
         foreach($links as $link){
-            $nodes[$link[$Node->alias][$Node->primaryKey]]=array();
-            $preds[]=$link[$Node->alias][$Node->primaryKey];
-            $nodes[$link[$Model->alias][$Model->__linkPred]][$link[$Node->alias][$Node->primaryKey]]=$link;
+            $nodes[$link->get($objects->primaryKey())]=$link;
+            $link->nodes=[];
+            $preds[]=$link->get($objects->primaryKey());
+            $nodes[$link->get($this->_table->alias())[$this->__linkPred]]->nodes[]=$link;
         }
-        
-        $this->__extractLinkLevel($Model,$nodes,$preds,$query);
+
+        $this->__extractLinkSuccLevel($nodes,$preds);
     }
-    
+
     private function __extractLinkNode(&$nodes,$nodeId){
-        $items=array();
-        
+        $items=[];
+
         if(!empty($nodes[$nodeId])){
             foreach($nodes[$nodeId] as $id=>$item){
                 $items[$id]=$item;
             }
         }
-        
+
         return($items);
     }
-    
-    private function __extractLinkRoot(Model $Model,$query=array()){
-        $Node=ClassRegistry::init($this->__linkNode);
-        
-        $roots=$Node->find('all',Base::extend($query,array(
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>$Model->alias,'type'=>'LEFT','conditions'=>array($Model->alias.'.'.$Model->__linkPred.'<>'.$Model->alias.'.'.$Model->__linkSucc,$Model->alias.'.'.$Model->__linkSucc.'='.$Node->alias.'.'.$Node->primaryKey))
-            ),
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->primaryKey.' is null'
-            ),
-            'fields'=>array($Node->alias.'.*')
-        )));
-        
+
+    private function __extractLinkRoot(){
+        $objects=TableRegistry::get($this->__linkNode);
+
+        $roots=$objects->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>$this->_table->alias(),
+            'type'=>'LEFT',
+            'conditions'=>[
+                $this->_table->alias().'.'.$this->__linkPred.'<>'.$this->_table->alias().'.'.$this->__linkSucc,$this->_table->alias().'.'.$this->__linkSucc.'='.$objects->alias().'.'.$objects->primaryKey()
+            ]
+        ])->where([
+            $this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+        ])->select($objects)->toArray();
+
         return($roots);
     }
-    
-    public function extractLinkTree(Model $Model,$query=array(),$nodeId=null){
-        $Node=ClassRegistry::init($this->__linkNode);
 
-        if($nodeId){            
-            $node=$Node->find('first',Base::extend($query,array(
-                'conditions'=>array(
-                    $Node->alias.'.'.$Node->primaryKey=>$nodeId
-                ),
-                'fields'=>array($Node->alias.'.*')
-            )));
-            
+    public function extractLinkSucc($nodeId=null){
+        $objects=TableRegistry::get($this->__linkNode);
+
+        if($nodeId){
+            $node=$objects->find()->where([
+                $objects->alias().'.'.$objects->primaryKey()=>$nodeId
+            ])->first();
+
             if(empty($node)){
                 return(false);
             }
-            
-            $nodes=array();
-            $this->__extractLinkLevel($Model,$nodes,array($nodeId),$query);
+
+            $nodes=[];
+            $this->__extractLinkSuccLevel($nodes,[$node->get($objects->primaryKey())]);
             $node['nodes']=$this->__extractLinkNode($nodes,$nodeId);
-            
+
             return($node);
         }
-        
-        $roots=$this->__extractLinkRoot($Model,$query);        
-        $preds=array();
-        
+
+        $roots=$this->__extractLinkRoot();
+
+        $preds=[];
+
         foreach($roots as $root){
-            $preds[]=$root[$Node->alias]['id'];
+            $preds[]=$root->get($objects->primaryKey());
         }
-        
-        $nodes=array();
-        
-        $this->__extractLinkLevel($Model,$nodes,$preds,$query);
-        
+
+        $nodes=[];
+
+        $this->__extractLinkSuccLevel($nodes,$preds);
+
         foreach($roots as &$root){
-            $root['nodes']=$this->__extractLinkNode($nodes,$root[$Node->alias][$Node->primaryKey]);
+            $root->nodes=$this->__extractLinkNode($nodes,$root->get($objects->primaryKey()));
         }
-        
+
         return($roots);
     }
-    
-    public function extractLinkSiblings(Model $Model,$nodeId,$otherNodeId){
-        $count=$Model->find('count',array(
-            'recursive'=>-1,
-            'joins'=>array(
-                array('table'=>$Model->useTable,'alias'=>'Other'.$Model->alias,'conditions'=>array('Other'.$Model->alias.'.'.$Model->__linkPred.'='.$Model->alias.'.'.$Model->__linkPred))
-            ),
-            'conditions'=>array(
-                $Model->alias.'.'.$Model->__linkSucc=>$nodeId,
-                'Other'.$Model->alias.'.'.$Model->__linkSucc=>$otherNodeId,
-            )
-        ));
-        
+
+    private function __extractLinkLeaf(){
+        $objects=TableRegistry::get($this->__linkNode);
+
+        $leafs=$objects->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>$this->_table->alias(),
+            'type'=>'LEFT',
+            'conditions'=>[
+                $this->_table->alias().'.'.$this->__linkPred.'<>'.$this->_table->alias().'.'.$this->__linkSucc,$this->_table->alias().'.'.$this->__linkPred.'='.$objects->alias().'.'.$objects->primaryKey()
+            ]
+        ])->where([
+            $this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+        ])->select($objects)->toArray();
+
+        return($leafs);
+    }
+
+    private function __extractLinkPredLevel(&$nodes,$succs){
+        $objects=TableRegistry::get($this->__linkNode);
+
+        $links=$objects->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>$this->_table->alias(),
+            'conditions'=>[
+                $this->_table->alias().'.'.$this->__linkPred.'='.$objects->alias().'.'.$objects->primaryKey()
+            ]
+        ])->where([
+            $this->_table->alias().'.'.$this->__linkPred.'<>'.$this->_table->alias().'.'.$this->__linkSucc,
+            $this->_table->alias().'.'.$this->__linkSucc.' IN'=>$succs,
+            $this->_table->alias().'.'.$this->__linkItem=>1
+        ])->select($objects)->select([$this->_table->alias().'.'.$this->__linkSucc])->toArray();
+
+        if(empty($links)){
+            return(false);
+        }
+
+        $succs=[];
+
+        foreach($links as $link){
+            $nodes[$link->get($objects->primaryKey())]=$link;
+            $link->preds=[];
+            $succs[]=$link->get($objects->primaryKey());
+            $nodes[$link->get($this->_table->alias())[$this->__linkSucc]]->preds[]=$link;
+        }
+
+        $this->__extractLinkPredLevel($nodes,$succs);
+    }
+
+
+    public function extractLinkPred($nodeId=null){
+        $objects=TableRegistry::get($this->__linkNode);
+
+        if($nodeId){
+            $node=$objects->find()->where([
+                $objects->alias().'.'.$objects->primaryKey()=>$nodeId
+            ])->first();
+
+            if(empty($node)){
+                return(false);
+            }
+
+            $nodes=[];
+            $this->__extractLinkPredLevel($nodes,[$node->get($objects->primaryKey())]);
+            $node->preds=$this->__extractLinkNode($nodes,$nodeId);
+
+            return($node);
+        }
+
+        $leafs=$this->__extractLinkLeaf();
+
+        $succs=[];
+
+        foreach($leafs as $leaf){
+            $succs[]=$leaf->get($objects->primaryKey());
+        }
+
+        $nodes=[];
+
+        $this->__extractLinkPredLevel($nodes,$succs);
+
+        foreach($leafs as &$leaf){
+            $leaf->preds=$this->__extractLinkNode($nodes,$leaf->get($objects->primaryKey()));
+        }
+
+        return($leafs);
+    }
+
+    public function extractLinkSiblings($nodeId,$otherNodeId){
+        $count=$this->_table->find()->join([
+            'table'=>$this->_table->table(),
+            'alias'=>'Other'.$this->_table->alias(),
+            'conditions'=> ['Other'.$this->_table->alias().'.'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkPred]
+        ])->where([
+            $this->_table->alias().'.'.$this->__linkSucc=>$nodeId,
+            'Other'.$this->_table->alias().'.'.$this->__linkSucc=>$otherNodeId
+        ])->count();
+
         return($count>0);
     }
 }
