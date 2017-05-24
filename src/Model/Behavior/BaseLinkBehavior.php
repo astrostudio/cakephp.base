@@ -307,6 +307,10 @@ class BaseLinkBehavior extends Behavior {
     }
 
     private function __extractLinkSuccLevel(&$nodes,$preds){
+        if(empty($preds)){
+            return;
+        }
+        
         $objects=TableRegistry::get($this->__linkNode);
 
         $links=$objects->find()->join([
@@ -422,6 +426,10 @@ class BaseLinkBehavior extends Behavior {
     }
 
     private function __extractLinkPredLevel(&$nodes,$succs){
+        if(empty($succs)){
+            return;
+        }
+        
         $objects=TableRegistry::get($this->__linkNode);
 
         $links=$objects->find()->join([
