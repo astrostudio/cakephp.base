@@ -10,6 +10,7 @@ class BaseLinkBehavior extends Behavior {
     private $__linkPred=null;
     private $__linkSucc=null;
     private $__linkItem=null;
+    private $__linkNode=null;
 
     public function initialize(array $config)
     {
@@ -326,16 +327,20 @@ class BaseLinkBehavior extends Behavior {
         ])->select($objects)->select([$this->_table->alias().'.'.$this->__linkPred])->toArray();
 
         if(empty($links)){
-            return(false);
+            return;
         }
 
         $preds=[];
 
         foreach($links as $link){
-            $nodes[$link->get($objects->primaryKey())]=$link;
-            $link->nodes=[];
-            $preds[]=$link->get($objects->primaryKey());
-            $nodes[$link->get($this->_table->alias())[$this->__linkPred]]->nodes[]=$link;
+            $linkId=$link->get($objects->primaryKey());
+            $preds[]=$linkId;
+
+            if(!isset($nodes[$linkId])){
+                $nodes[$linkId]=[];
+            }
+
+            $nodes[$link->get($this->_table->alias())[$this->__linkPred]][$linkId]=$link;
         }
 
         $this->__extractLinkSuccLevel($nodes,$preds);
@@ -370,7 +375,7 @@ class BaseLinkBehavior extends Behavior {
         return($roots);
     }
 
-    public function extractLinkSucc($nodeId=null){
+    public function extractLinkSucc($nodeId=null,$field='nodes'){
         $objects=TableRegistry::get($this->__linkNode);
 
         if($nodeId){
@@ -383,26 +388,27 @@ class BaseLinkBehavior extends Behavior {
             }
 
             $nodes=[];
+            $nodes[$node->get($objects->primaryKey())]=[];
             $this->__extractLinkSuccLevel($nodes,[$node->get($objects->primaryKey())]);
-            $node['nodes']=$this->__extractLinkNode($nodes,$nodeId);
+            $node->set($field,$this->__extractLinkNode($nodes,$nodeId));
 
             return($node);
         }
 
         $roots=$this->__extractLinkRoot();
 
+        $nodes=[];
         $preds=[];
 
         foreach($roots as $root){
+            $nodes[$root->get($objects->primaryKey())]=[];
             $preds[]=$root->get($objects->primaryKey());
         }
-
-        $nodes=[];
 
         $this->__extractLinkSuccLevel($nodes,$preds);
 
         foreach($roots as &$root){
-            $root->nodes=$this->__extractLinkNode($nodes,$root->get($objects->primaryKey()));
+            $root->set($field,$this->__extractLinkNode($nodes,$root->get($objects->primaryKey())));
         }
 
         return($roots);
@@ -451,17 +457,21 @@ class BaseLinkBehavior extends Behavior {
         $succs=[];
 
         foreach($links as $link){
-            $nodes[$link->get($objects->primaryKey())]=$link;
-            $link->preds=[];
-            $succs[]=$link->get($objects->primaryKey());
-            $nodes[$link->get($this->_table->alias())[$this->__linkSucc]]->preds[]=$link;
+            $linkId=$link->get($objects->primaryKey());
+            $succs[]=$linkId;
+
+            if(!isset($nodes[$linkId])){
+                $nodes[$linkId]=[];
+            }
+
+            $nodes[$link->get($this->_table->alias())[$this->__linkSucc]][]=$link;
         }
 
         $this->__extractLinkPredLevel($nodes,$succs);
     }
 
 
-    public function extractLinkPred($nodeId=null){
+    public function extractLinkPred($nodeId=null,$field='preds'){
         $objects=TableRegistry::get($this->__linkNode);
 
         if($nodeId){
@@ -474,26 +484,27 @@ class BaseLinkBehavior extends Behavior {
             }
 
             $nodes=[];
+            $nodes[$node->get($objects->primaryKey())]=[];
             $this->__extractLinkPredLevel($nodes,[$node->get($objects->primaryKey())]);
-            $node->preds=$this->__extractLinkNode($nodes,$nodeId);
+            $node->set($field,$this->__extractLinkNode($nodes,$nodeId));
 
             return($node);
         }
 
         $leafs=$this->__extractLinkLeaf();
 
+        $nodes=[];
         $succs=[];
 
         foreach($leafs as $leaf){
+            $nodes[$leaf->get($objects->primaryKey())]=[];
             $succs[]=$leaf->get($objects->primaryKey());
         }
-
-        $nodes=[];
 
         $this->__extractLinkPredLevel($nodes,$succs);
 
         foreach($leafs as &$leaf){
-            $leaf->preds=$this->__extractLinkNode($nodes,$leaf->get($objects->primaryKey()));
+            $leaf->set($field,$this->__extractLinkNode($nodes,$leaf->get($objects->primaryKey())));
         }
 
         return($leafs);
