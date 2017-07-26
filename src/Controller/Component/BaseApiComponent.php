@@ -65,7 +65,7 @@ class BaseApiComponent extends Component {
         }
     }
 
-    public function find(Table $table,$queryOptions=[],$sorters=[],$searches=[],$callable=null){
+    public function find(Table $table,$queryOptions=[],$sorters=[],$searches=[],$filters=[],$callable=null){
         try {
             $page = addslashes($this->BaseRequest->get('page', 1,'get'));
             $page = $page ? $page : 1;
@@ -73,6 +73,7 @@ class BaseApiComponent extends Component {
             $offset=addslashes($this->BaseRequest->get('offset',null,'get'));
             $sorter = addslashes($this->BaseRequest->get('sorter', null,'get'));
             $search = addslashes($this->BaseRequest->get('search', null,'get'));
+            $filter= addslashes($this->BaseRequest->get('filter',null,'get'));
             $fields = addslashes($this->BaseRequest->get('fields', '','get'));
             $query=$table->find()->applyOptions($queryOptions);
 
@@ -102,6 +103,10 @@ class BaseApiComponent extends Component {
 
             if (!empty($search) and ($search !== 'false')) {
                 $query=BaseQuery::search($query,$search,$searches);
+            }
+
+            if(!empty($filter) and !empty($filters[$filter])){
+                $query=$query->applyOptions($filters[$filter]);
             }
 
             $count = $query->count();
@@ -139,6 +144,7 @@ class BaseApiComponent extends Component {
                 'limit'=>$limit,
                 'sorter'=>$sorter,
                 'search'=>$search,
+                'filter'=>$filter,
                 'rows'=>[]
             ];
 

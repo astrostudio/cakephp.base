@@ -3,6 +3,7 @@ namespace Base\Model\Behavior;
 
 use Cake\ORM\Behavior;
 use Cake\ORM\TableRegistry;
+use Cake\ORM\Query;
 use Cake\Utility\Hash;
 
 class BaseLinkBehavior extends Behavior {
@@ -358,7 +359,7 @@ class BaseLinkBehavior extends Behavior {
         return($items);
     }
 
-    private function __extractLinkRoot(){
+    public function extractLinkRoot(){
         $objects=TableRegistry::get($this->__linkNode);
 
         $roots=$objects->find()->join([
@@ -395,7 +396,7 @@ class BaseLinkBehavior extends Behavior {
             return($node);
         }
 
-        $roots=$this->__extractLinkRoot();
+        $roots=$this->extractLinkRoot();
 
         $nodes=[];
         $preds=[];
@@ -414,7 +415,7 @@ class BaseLinkBehavior extends Behavior {
         return($roots);
     }
 
-    private function __extractLinkLeaf(){
+    public function extractLinkLeaf(){
         $objects=TableRegistry::get($this->__linkNode);
 
         $leafs=$objects->find()->join([
@@ -491,7 +492,7 @@ class BaseLinkBehavior extends Behavior {
             return($node);
         }
 
-        $leafs=$this->__extractLinkLeaf();
+        $leafs=$this->extractLinkLeaf();
 
         $nodes=[];
         $succs=[];
@@ -522,4 +523,139 @@ class BaseLinkBehavior extends Behavior {
 
         return($count>0);
     }
+
+    public function queryLink(array $options=[],array $params=[]){
+        $objects=TableRegistry::get($this->__linkNode);
+        $alias=$objects->alias();
+        $primaryKey=$objects->primaryKey();
+        $params=array_merge(['link'=>'link','node'=>'node','alias'=>$alias.'Link'],$params);
+        $query=[];
+
+        if(!empty($options[$params['link']])){
+            switch($options[$params['link']]){
+                case 'root':
+                    if(!empty($options[$params['node']])){
+                        $query=[
+                            'joins'=>[[
+                                'table'=>$this->_table->table(),
+                                'alias'=>$params['alias'],
+                                'conditions'=>[
+                                    $alias.'.'.$this->__linkPred.'='.$alias.'.'.$primaryKey
+                                ]
+                            ]],
+                            'conditions'=>[
+                                $params['alias'].'.'.$this->__linkSucc=>$options[$params['node']],
+                                $alias.'.'.$primaryKey.'<>'.$options[$params['node']]
+                            ]
+                        ];
+                    }
+                    else {
+                        $query=[
+                            'joins'=>[[
+                                'table'=>$this->_table->table(),
+                                'alias'=>$params['alias'],
+                                'type'=>'LEFT',
+                                'conditions'=>[
+                                    $params['alias'].'.'.$this->__linkSucc.'='.$alias.'.'.$primaryKey,
+                                    $params['alias'].'.'.$this->__linkPred.'<>'.$params['alias'].'.'.$this->__linkSucc
+                                ]
+                            ]],
+                            'conditions'=>[
+                                $params['alias'].'.'.$this->_table->primaryKey().' is null'
+                            ]];
+                    }
+
+                    break;
+                case 'node':
+                    if(!empty($options[$params['node']])){
+                        $query=[
+                            'joins'=>[[
+                                'table'=>$this->_table->table(),
+                                'alias'=>$params['alias'],
+                                'conditions'=>[
+                                    $params['alias'].'.'.$this->__linkPred.'='.$alias.'.'.$primaryKey
+                                ]
+                            ]],
+                            'conditions'=>[
+                                $params['alias'].'.'.$this->__linkItem=>1,
+                                $params['alias'].'.'.$this->__linkSucc=>$options[$params['node']],
+                                $alias.'.'.$primaryKey.'<>'.$options[$params['node']]
+                            ]];
+                    }
+
+                    break;
+                case 'item':
+                    if(!empty($options[$params['node']])){
+                        $query=[
+                            'joins'=>[[
+                                'table'=>$this->_table->alias(),
+                                'alias'=>$params['alias'],
+                                'conditions'=>[
+                                    $params['alias'].'.'.$this->__linkSucc.'='.$alias.'.'.$primaryKey
+                                ]
+                            ]],
+                            'conditions'=>[
+                                $params['alias'].'.'.$this->__linkItem=>1,
+                                $params['alias'].'.'.$this->__linkPred=>$options[$params['node']],
+                                $alias.'.'.$primaryKey.'<>'.$options[$params['node']]
+                            ]
+                        ];
+                    }
+
+                    break;
+                case 'leaf':
+                    if(!empty($options['activity'])){
+                        $query=[
+                            'joins'=>[[
+                                'table'=>$this->_table->table(),
+                                'alias'=>$params['alias'],
+                                'conditions'=>[
+                                    $alias.'.'.$this->__linkSucc.'='.$alias.'.'.$primaryKey
+                                ]
+                            ]],
+                            'conditions'=>[
+                                $params['alias'].'.'.$this->__linkPred=>$options[$params['node']],
+                                $alias.'.'.$primaryKey.'<>'.$options[$params['node']]
+                            ]];
+                    }
+                    else {
+                        $query=[
+                            'joins'=>[[
+                                'table'=>$this->_table->table(),
+                                'alias'=>$params['alias'],
+                                'type'=>'LEFT',
+                                'conditions'=>[
+                                    $params['alias'].'.'.$this->__linkPred.'='.$alias.'.'.$primaryKey,
+                                    $params['alias'].'.'.$this->__linkPred.'<>'.$params['alias'].'.'.$this->__linkSucc
+                                ]
+                            ]],
+                            'conditions'=>[
+                                $params['alias'].'.'.$this->_table->primaryKey().' is null'
+                            ]];
+                    }
+
+                    break;
+            }
+        }
+
+        if(!empty($options[$params['node'].'-not'])){
+            $query=\Base\Base::extend($query,[
+                'joins'=>[[
+                    'table'=>$this->_table->table(),
+                    'alias'=>$params['alias'].'None',
+                    'type'=>'LEFT',
+                    'conditions'=>[
+                        $params['alias'].'None.'.$this->__linkSucc.'='.$alias.'.'.$primaryKey,
+                        $params['alias'].'None.'.$this->__linkPred.'='.$options[$params['node'].'-not']]
+                    ]
+                ],
+                'conditions'=>[
+                    $params['alias'].'None.'.$this->_table->primaryKey().' is null'
+                ]
+            ]);
+        }
+
+        return($query);
+    }
+
 }
