@@ -240,7 +240,7 @@ class BaseLinkBehavior extends Behavior {
     }
 
     public function shrinkLink($predId,$succId){
-        return($this->shrinkLinkUp($predId,$succId) and $this->ShrinkLinkDown($predId,$succId));
+        return($this->shrinkLinkUp($predId,$succId) and $this->shrinkLinkDown($predId,$succId));
     }
 
     public function shrinkLinkUp($predId,$succId){
