@@ -21,7 +21,12 @@ class BaseQuery {
 
     static public function tag(Query $query,$field,$tag=null){
         if(is_string($tag)){
-            $tags=explode(' ',$tag);
+            if(!empty($tag)) {
+                $tags = explode(' ', $tag);
+            }
+            else {
+                $tags=[];
+            }
         }
         else if(is_array($tag)){
             $tags=$tag;

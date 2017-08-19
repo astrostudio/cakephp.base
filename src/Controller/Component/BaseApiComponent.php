@@ -66,6 +66,10 @@ class BaseApiComponent extends Component {
     }
 
     public function find(Table $table,$queryOptions=[],$sorters=[],$searches=[],$filters=[],$callable=null){
+        return($this->query($table->query()->applyOptions($queryOptions),$sorters,$searches,$filters,$callable));
+    }
+
+    public function query(Query $query,$sorters=[],$searches=[],$filters=[],$callable=null){
         try {
             $page = addslashes($this->BaseRequest->get('page', 1,'get'));
             $page = $page ? $page : 1;
@@ -75,7 +79,6 @@ class BaseApiComponent extends Component {
             $search = addslashes($this->BaseRequest->get('search', null,'get'));
             $filter= addslashes($this->BaseRequest->get('filter',null,'get'));
             $fields = addslashes($this->BaseRequest->get('fields', '','get'));
-            $query=$table->find()->applyOptions($queryOptions);
 
             if(!empty($fields)){
                 $fields = explode(',', $fields);

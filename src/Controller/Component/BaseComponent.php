@@ -101,5 +101,17 @@ class BaseComponent extends Component {
     public function clear(){
         $this->_registry->getController()->request->session()->delete('Base');
     }
+
+    public function redirect($url,$status=302,$name='redirect'){
+        if(!empty($name)) {
+            $redirect = $this->_registry->getController()->request->query($name);
+
+            if (!empty($redirect)) {
+                return ($redirect);
+            }
+        }
+
+        return($this->_registry->getController()->redirect($url,$status));
+    }
     
 }
