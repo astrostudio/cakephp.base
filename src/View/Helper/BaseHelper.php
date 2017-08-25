@@ -183,5 +183,15 @@ class BaseHelper extends Helper {
         
         return($this->output($output));
     }
+
+    public function urlWithRedirect($url,$name='redirect'){
+        $redirect=$this->request->query($name);
+
+        if(is_array($url)){
+            $url=Base::extend($url,['?'=>['redirect'=>$redirect]]);
+        }
+
+        return($url);
+    }
 }
 ?>

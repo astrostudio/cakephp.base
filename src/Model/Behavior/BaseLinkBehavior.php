@@ -155,7 +155,7 @@ class BaseLinkBehavior extends Behavior {
             ]
         ])->where([
             $this->_table->alias().'.'.$this->__linkSucc=>$predId,
-            'Item'.$this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+            'Item'.$this->_table->alias().'.'.$this->__linkPred.' is null'
         ])->select($this->_table)->all();
 
         foreach($links as $link){
@@ -183,7 +183,7 @@ class BaseLinkBehavior extends Behavior {
             ]
         ])->where([
             $this->_table->alias().'.'.$this->__linkPred=>$succId,
-            'Item'.$this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+            'Item'.$this->_table->alias().'.'.$this->__linkPred.' is null'
         ])->select($this->_table)->all();
 
         foreach($links as $link){
@@ -221,7 +221,7 @@ class BaseLinkBehavior extends Behavior {
                 'Item'.$this->_table->alias().'.'.$this->__linkSucc.'=Succ'.$this->_table->alias().'.'.$this->__linkSucc
             ]
         ])->where([
-            'Item'.$this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+            'Item'.$this->_table->alias().'.'.$this->__linkPred.' is null'
         ])->select([$this->_table->alias().'.*','Succ'.$this->_table->alias().'.*'])->toArray();
 
         foreach($links as $link){
@@ -370,7 +370,7 @@ class BaseLinkBehavior extends Behavior {
                 $this->_table->alias().'.'.$this->__linkPred.'<>'.$this->_table->alias().'.'.$this->__linkSucc,$this->_table->alias().'.'.$this->__linkSucc.'='.$objects->alias().'.'.$objects->primaryKey()
             ]
         ])->where([
-            $this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+            $this->_table->alias().'.'.$this->__linkPred.' is null'
         ])->select($objects)->toArray();
 
         return($roots);
@@ -426,7 +426,7 @@ class BaseLinkBehavior extends Behavior {
                 $this->_table->alias().'.'.$this->__linkPred.'<>'.$this->_table->alias().'.'.$this->__linkSucc,$this->_table->alias().'.'.$this->__linkPred.'='.$objects->alias().'.'.$objects->primaryKey()
             ]
         ])->where([
-            $this->_table->alias().'.'.$this->_table->primaryKey().' is null'
+            $this->_table->alias().'.'.$this->__linkPred.' is null'
         ])->select($objects)->toArray();
 
         return($leafs);
@@ -561,7 +561,7 @@ class BaseLinkBehavior extends Behavior {
                                 ]
                             ]],
                             'conditions'=>[
-                                $params['alias'].'.'.$this->_table->primaryKey().' is null'
+                                $params['alias'].'.'.$this->__linkSucc.' is null'
                             ]];
                     }
 
@@ -630,7 +630,7 @@ class BaseLinkBehavior extends Behavior {
                                 ]
                             ]],
                             'conditions'=>[
-                                $params['alias'].'.'.$this->_table->primaryKey().' is null'
+                                $params['alias'].'.'.$this->__linkPred.' is null'
                             ]];
                     }
 
@@ -650,7 +650,7 @@ class BaseLinkBehavior extends Behavior {
                     ]
                 ],
                 'conditions'=>[
-                    $params['alias'].'None.'.$this->_table->primaryKey().' is null'
+                    $params['alias'].'None.'.$this->_table->__linkSucc.' is null'
                 ]
             ]);
         }

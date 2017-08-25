@@ -107,7 +107,7 @@ class BaseComponent extends Component {
             $redirect = $this->_registry->getController()->request->query($name);
 
             if (!empty($redirect)) {
-                return ($redirect);
+                return ($this->_registry->getController()->redirect($redirect));
             }
         }
 
