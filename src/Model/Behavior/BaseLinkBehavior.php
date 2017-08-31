@@ -536,7 +536,7 @@ class BaseLinkBehavior extends Behavior {
                 case 'root':
                     if(!empty($options[$params['node']])){
                         $query=[
-                            'joins'=>[[
+                            'join'=>[[
                                 'table'=>$this->_table->table(),
                                 'alias'=>$params['alias'],
                                 'conditions'=>[
@@ -551,7 +551,7 @@ class BaseLinkBehavior extends Behavior {
                     }
                     else {
                         $query=[
-                            'joins'=>[[
+                            'join'=>[[
                                 'table'=>$this->_table->table(),
                                 'alias'=>$params['alias'],
                                 'type'=>'LEFT',
@@ -569,7 +569,7 @@ class BaseLinkBehavior extends Behavior {
                 case 'node':
                     if(!empty($options[$params['node']])){
                         $query=[
-                            'joins'=>[[
+                            'join'=>[[
                                 'table'=>$this->_table->table(),
                                 'alias'=>$params['alias'],
                                 'conditions'=>[
@@ -587,7 +587,7 @@ class BaseLinkBehavior extends Behavior {
                 case 'item':
                     if(!empty($options[$params['node']])){
                         $query=[
-                            'joins'=>[[
+                            'join'=>[[
                                 'table'=>$this->_table->alias(),
                                 'alias'=>$params['alias'],
                                 'conditions'=>[
@@ -606,7 +606,7 @@ class BaseLinkBehavior extends Behavior {
                 case 'leaf':
                     if(!empty($options['activity'])){
                         $query=[
-                            'joins'=>[[
+                            'join'=>[[
                                 'table'=>$this->_table->table(),
                                 'alias'=>$params['alias'],
                                 'conditions'=>[
@@ -620,7 +620,7 @@ class BaseLinkBehavior extends Behavior {
                     }
                     else {
                         $query=[
-                            'joins'=>[[
+                            'join'=>[[
                                 'table'=>$this->_table->table(),
                                 'alias'=>$params['alias'],
                                 'type'=>'LEFT',
@@ -640,7 +640,7 @@ class BaseLinkBehavior extends Behavior {
 
         if(!empty($options[$params['node'].'-not'])){
             $query=\Base\Base::extend($query,[
-                'joins'=>[[
+                'join'=>[[
                     'table'=>$this->_table->table(),
                     'alias'=>$params['alias'].'None',
                     'type'=>'LEFT',
