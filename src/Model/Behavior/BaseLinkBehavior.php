@@ -308,14 +308,14 @@ class BaseLinkBehavior extends Behavior {
         return(true);
     }
 
-    private function __extractLinkSuccLevel(&$nodes,$preds){
+    private function __extractLinkSuccLevel(&$nodes,$preds,array $options=[]){
         if(empty($preds)){
             return;
         }
         
         $objects=TableRegistry::get($this->__linkNode);
 
-        $links=$objects->find()->join([
+        $links=$objects->find()->applyOptions($options)->join([
             'table'=>$this->_table->table(),
             'alias'=>$this->_table->alias(),
             'conditions'=>[
@@ -359,10 +359,10 @@ class BaseLinkBehavior extends Behavior {
         return($items);
     }
 
-    public function extractLinkRoot(){
+    public function extractLinkRoot(array $options=[]){
         $objects=TableRegistry::get($this->__linkNode);
 
-        $roots=$objects->find()->join([
+        $roots=$objects->find()->applyOptions($options)->join([
             'table'=>$this->_table->table(),
             'alias'=>$this->_table->alias(),
             'type'=>'LEFT',
@@ -376,11 +376,11 @@ class BaseLinkBehavior extends Behavior {
         return($roots);
     }
 
-    public function extractLinkSucc($nodeId=null,$field='nodes'){
+    public function extractLinkSucc($nodeId=null,array $options=[],$field='nodes'){
         $objects=TableRegistry::get($this->__linkNode);
 
         if($nodeId){
-            $node=$objects->find()->where([
+            $node=$objects->find()->applyOptions($options)->where([
                 $objects->alias().'.'.$objects->primaryKey()=>$nodeId
             ])->first();
 
@@ -390,13 +390,13 @@ class BaseLinkBehavior extends Behavior {
 
             $nodes=[];
             $nodes[$node->get($objects->primaryKey())]=[];
-            $this->__extractLinkSuccLevel($nodes,[$node->get($objects->primaryKey())]);
+            $this->__extractLinkSuccLevel($nodes,[$node->get($objects->primaryKey())],$options);
             $node->set($field,$this->__extractLinkNode($nodes,$nodeId));
 
             return($node);
         }
 
-        $roots=$this->extractLinkRoot();
+        $roots=$this->extractLinkRoot($options);
 
         $nodes=[];
         $preds=[];
@@ -406,7 +406,7 @@ class BaseLinkBehavior extends Behavior {
             $preds[]=$root->get($objects->primaryKey());
         }
 
-        $this->__extractLinkSuccLevel($nodes,$preds);
+        $this->__extractLinkSuccLevel($nodes,$preds,$options);
 
         foreach($roots as &$root){
             $root->set($field,$this->__extractLinkNode($nodes,$root->get($objects->primaryKey())));
@@ -415,10 +415,10 @@ class BaseLinkBehavior extends Behavior {
         return($roots);
     }
 
-    public function extractLinkLeaf(){
+    public function extractLinkLeaf(array $options=[]){
         $objects=TableRegistry::get($this->__linkNode);
 
-        $leafs=$objects->find()->join([
+        $leafs=$objects->find()->applyOptions($options)->join([
             'table'=>$this->_table->table(),
             'alias'=>$this->_table->alias(),
             'type'=>'LEFT',
@@ -432,14 +432,14 @@ class BaseLinkBehavior extends Behavior {
         return($leafs);
     }
 
-    private function __extractLinkPredLevel(&$nodes,$succs){
+    private function __extractLinkPredLevel(&$nodes,$succs,array $options=[]){
         if(empty($succs)){
             return;
         }
         
         $objects=TableRegistry::get($this->__linkNode);
 
-        $links=$objects->find()->join([
+        $links=$objects->find()->applyOptions($options)->join([
             'table'=>$this->_table->table(),
             'alias'=>$this->_table->alias(),
             'conditions'=>[
@@ -468,15 +468,15 @@ class BaseLinkBehavior extends Behavior {
             $nodes[$link->get($this->_table->alias())[$this->__linkSucc]][]=$link;
         }
 
-        $this->__extractLinkPredLevel($nodes,$succs);
+        $this->__extractLinkPredLevel($nodes,$succs,$options);
     }
 
 
-    public function extractLinkPred($nodeId=null,$field='preds'){
+    public function extractLinkPred($nodeId=null,array $options=[],$field='preds'){
         $objects=TableRegistry::get($this->__linkNode);
 
         if($nodeId){
-            $node=$objects->find()->where([
+            $node=$objects->find()->applyOptions($options)->where([
                 $objects->alias().'.'.$objects->primaryKey()=>$nodeId
             ])->first();
 
@@ -486,13 +486,13 @@ class BaseLinkBehavior extends Behavior {
 
             $nodes=[];
             $nodes[$node->get($objects->primaryKey())]=[];
-            $this->__extractLinkPredLevel($nodes,[$node->get($objects->primaryKey())]);
+            $this->__extractLinkPredLevel($nodes,[$node->get($objects->primaryKey())],$options);
             $node->set($field,$this->__extractLinkNode($nodes,$nodeId));
 
             return($node);
         }
 
-        $leafs=$this->extractLinkLeaf();
+        $leafs=$this->extractLinkLeaf($options);
 
         $nodes=[];
         $succs=[];
@@ -502,7 +502,7 @@ class BaseLinkBehavior extends Behavior {
             $succs[]=$leaf->get($objects->primaryKey());
         }
 
-        $this->__extractLinkPredLevel($nodes,$succs);
+        $this->__extractLinkPredLevel($nodes,$succs,$options);
 
         foreach($leafs as &$leaf){
             $leaf->set($field,$this->__extractLinkNode($nodes,$leaf->get($objects->primaryKey())));
@@ -511,8 +511,8 @@ class BaseLinkBehavior extends Behavior {
         return($leafs);
     }
 
-    public function extractLinkSiblings($nodeId,$otherNodeId){
-        $count=$this->_table->find()->join([
+    public function extractLinkSiblings($nodeId,$otherNodeId,array $options=[]){
+        $count=$this->_table->find()->applyOptions($options)->join([
             'table'=>$this->_table->table(),
             'alias'=>'Other'.$this->_table->alias(),
             'conditions'=> ['Other'.$this->_table->alias().'.'.$this->__linkPred.'='.$this->_table->alias().'.'.$this->__linkPred]

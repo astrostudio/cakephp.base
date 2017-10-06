@@ -87,20 +87,8 @@ class BaseApiComponent extends Component {
             }
 
             if(!empty($sorter)){
-                if(substr($sorter,0,1)=='-'){
-                    $sorter=substr($sorter,1);
-                    $suffix=' DESC';
-                }
-                else {
-                    if(substr($sorter,0,1)=='+'){
-                        $sorter=substr($sorter,1);
-                    }
-
-                    $suffix='';
-                }
-
                 if(!empty($sorters[$sorter])){
-                    $query=$query->order($sorters[$sorter].$suffix);
+                    $query=$query->order($sorters[$sorter]);
                 }
             }
 
