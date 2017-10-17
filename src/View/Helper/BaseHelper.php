@@ -123,7 +123,7 @@ class BaseHelper extends Helper {
             return('');
         }
 
-        return($this->b__ufferLevel[$alias]);
+        return($this->__bufferLevel[$alias]);
     }
 
     public function urlWithRedirect($url,$name='redirect'){
