@@ -6,25 +6,10 @@ use Cake\View\View;
 use Cake\Utility\Hash;
 use Cake\Routing\Router;
 use Base\Base;
-use DateTime;
 use Exception;
 
 class BaseHelper extends Helper {
 
-    public $helpers=array('Session','Html');
-    
-    public $baseSlotClass='base-slot';
-
-    public function __construct(View $View,array $config=[]){
-        parent::__construct($View,$config);
-        
-        $this->baseSlotClass=Hash::get($config,'baseSlotClass','base-slot');
-    }
-    
-    public function value(&$variable,$default=null){
-        return(!empty($variable)?$variable:$default);
-    }
-    
     function content($path,$default=null){
         if(is_file($path)) {
             return(file_get_contents($path));
@@ -53,16 +38,6 @@ class BaseHelper extends Helper {
         return($default);
     }
     
-    public function formatTime($value,$format){
-        $time=DateTime::createFromFormat('Y-m-d H:i:s',$value);
-        
-        if(!$time){
-            $time=DateTime::createFromFormat('Y-m-d',$value);            
-        }
-        
-        return(!empty($time)?$time->format($format):'-');
-    }
-
     public function url($url=null){
         $surl=Router::url('/',true);
         
@@ -70,7 +45,11 @@ class BaseHelper extends Helper {
             if(!empty($this->request->params['plugin'])){
                 $surl.=$this->request->params['plugin'];
             }
-            
+
+            if(!empty($this->request->params['prefix'])){
+                $surl.=$this->request->params['prefix'];
+            }
+
             $surl.=$this->request->params['controller'].'/'.$this->request->params['action'];
         }
         else if(is_array($url)){
@@ -85,103 +64,66 @@ class BaseHelper extends Helper {
         return($surl);        
     }
 
-
-    private $bufferStack=[];
-    private $bufferLevel=false;
-    private $bufferAlias=false;
+    private $__bufferStack=[];
+    private $__bufferLevel=false;
+    private $__bufferAlias=false;
 
     public function start($alias='default',$clear=true){
-        if(empty($this->bufferLevel)){
-            $this->bufferLevel=[];
+        if(empty($this->__bufferLevel)){
+            $this->__bufferLevel=[];
         }
 
-        if(!empty($this->bufferAlias)){
-            array_push($this->bufferStack,['alias'=>$this->bufferAlias,'level'=>$this->bufferLevel]);
+        if(!empty($this->__bufferAlias)){
+            array_push($this->__bufferStack,['alias'=>$this->__bufferAlias,'level'=>$this->__bufferLevel]);
 
-            $this->bufferLevel=[];
-            $this->bufferAlias=$alias;
-            $this->bufferLevel[$this->bufferAlias]='';
+            $this->__bufferLevel=[];
+            $this->__bufferAlias=$alias;
+            $this->__bufferLevel[$this->__bufferAlias]='';
         }
         else {
-            $this->bufferAlias=$alias;
+            $this->__bufferAlias=$alias;
 
-            if($clear or empty($this->bufferLevel[$this->bufferAlias])){
-                $this->bufferLevel[$this->bufferAlias]='';
+            if($clear or empty($this->__bufferLevel[$this->__bufferAlias])){
+                $this->__bufferLevel[$this->__bufferAlias]='';
             }
         }
 
         if(!ob_start()){
-            throw new Exception('BaseHelper::start: Start error.');
+            throw new Exception('Base\\BaseHelper::start: Start error.');
         }
 
         return(true);
     }
 
     public function end(){
-        if(empty($this->bufferLevel)){
-            throw new Exception('BaseHelper::start:  Buffer not started.');
+        if(empty($this->__bufferLevel)){
+            throw new Exception('Base\\BaseHelper::start:  Buffer not started.');
         }
 
-        if(empty($this->bufferAlias)) {
-            if(empty($this->bufferStack)) {
-                throw new Exception('BaseHelper::start:  Buffer not started.');
+        if(empty($this->__bufferAlias)) {
+            if(empty($this->__bufferStack)) {
+                throw new Exception('Base\\BaseHelper::start:  Buffer not started.');
             }
 
-            $item=array_pop($this->bufferStack);
-            $this->bufferLevel=$item['level'];
-            $this->bufferAlias=$item['alias'];
+            $item=array_pop($this->__bufferStack);
+            $this->__bufferLevel=$item['level'];
+            $this->__bufferAlias=$item['alias'];
         }
 
-        $this->bufferLevel[$this->bufferAlias].=ob_get_clean();
-        $this->bufferAlias=false;
+        $this->__bufferLevel[$this->__bufferAlias].=ob_get_clean();
+        $this->__bufferAlias=false;
     }
 
     public function fetch($alias='default'){
-        if(empty($this->bufferLevel)){
+        if(empty($this->__bufferLevel)){
             return('');
         }
 
-        if(empty($this->bufferLevel[$alias])){
+        if(empty($this->__bufferLevel[$alias])){
             return('');
         }
 
-        return($this->bufferLevel[$alias]);
-    }
-
-
-    public function clear($name='default'){
-        unset($this->buffers[$name]);
-    }
-  
-    public function slot($url=null,$options=array()){
-        $class=Hash::get($options,'class','');
-        
-        if(strpos($class,$this->baseSlotClass)===false){
-            $class.=!empty($class)?' ':'';
-            $class.=$this->baseSlotClass;
-        }
-        
-        $options['class']=$class;
-    
-        $output='';
-        $output.='<div';
-        
-        foreach($options as $name=>$value){
-            $output.=' '.$name.'="'.$value.'"';
-        }
-        
-        $output.='>';
-        
-        $output.='<div class="'.$this->baseSlotClass.'-body">';
-        
-        if(!empty($url)){
-            $output.=$this->Html->link('',$url,array('class'=>$this->baseSlotClass.'-init'));
-        }
-        
-        $output.='</div>';
-        $output.='</div>';
-        
-        return($this->output($output));
+        return($this->b__ufferLevel[$alias]);
     }
 
     public function urlWithRedirect($url,$name='redirect'){

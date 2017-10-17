@@ -1,7 +1,7 @@
 <?php
 namespace Base\Model\Behavior;
 
-use Base\Model\Access\IBaseAccess;
+use Base\Model\Access\IAccess;
 use Cake\ORM\Behavior;
 use Cake\Utility\Hash;
 use Cake\Core\App;
@@ -12,23 +12,23 @@ use Cake\Utility\Inflector;
 use Exception;
 use ArrayObject;
 
-class BaseAccessBehavior extends Behavior {
+class AccessBehavior extends Behavior {
 
     protected $_accessObject=null;
 
     public function initialize(array $config){
         $class=Hash::get($config,'class',$this->_table->alias);
 
-        if(!App::classname($class,'Model/Access','Access')){
-            throw new Exception('Base.BaseAccessBehavior::initialize(): No class '.$class);
+        if(!App::className($class,'Model/Access','Access')){
+            throw new Exception('Base.AccessBehavior::initialize(): No class '.$class);
         }
 
         list($plugin,$name)=pluginSplit($class);
 
         $accessObject=new $name($this->_table);
 
-        if(!($accessObject instanceof IBaseAccess)){
-            throw new Exception('Base.BaseAccessBehavior::initialize(): No IBaseAccess object');
+        if(!($accessObject instanceof IAccess)){
+            throw new Exception('Base.AccessBehavior::initialize(): No IAccess object');
         }
 
         $this->_accessObject=new $name($this->_table);

@@ -4,13 +4,13 @@ namespace Base\Controller\Component;
 use Cake\Controller\Component;
 use Cake\Event\Event;
 use Base\Base;
-use Base\Controller\Component\BaseRequest\IBaseRequestHandler;
-use Base\Controller\Component\BaseRequest\ParamRequestHandler;
-use Base\Controller\Component\BaseRequest\GetRequestHandler;
-use Base\Controller\Component\BaseRequest\PostRequestHandler;
-use Base\Controller\Component\BaseRequest\PassRequestHandler;
+use Base\Controller\Component\RequestHandler\IRequestHandler;
+use Base\Controller\Component\RequestHandler\ParamRequestHandler;
+use Base\Controller\Component\RequestHandler\GetRequestHandler;
+use Base\Controller\Component\RequestHandler\PostRequestHandler;
+use Base\Controller\Component\RequestHandler\PassRequestHandler;
 
-class BaseRequestComponent extends Component {
+class RequestComponent extends Component {
 
     public $settings=array();
     
@@ -44,14 +44,14 @@ class BaseRequestComponent extends Component {
         return(null);
     }
     
-    public function setHandler($name,IBaseRequestHandler $handler=null){
+    public function setHandler($name,IRequestHandler $handler=null){
         if(isset($handler)){
             $this->handlers[$name]=$handler;
         }
     }
     
     public function handlers($handler='param'){
-        if($handler instanceof IBaseRequestHandler){
+        if($handler instanceof IRequestHandler){
             return(array($handler));
         }
         
@@ -121,7 +121,7 @@ class BaseRequestComponent extends Component {
     }
 
     public function session($name,$space=null,$handler=null){    
-        $path='Base.BaseRequest'; 
+        $path='Base.Request';
         $space=isset($space)?$space:$this->space();
         $path.='.'.$space;
         

@@ -10,7 +10,7 @@ use Cake\Utility\Inflector;
 use Cake\Utility\Hash;
 use Base\Base;
 
-class BaseListBehavior extends Behavior {
+class ListBehavior extends Behavior {
 
     private $__listField='position';
     private $__listScope=[];

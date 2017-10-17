@@ -2,7 +2,6 @@
 namespace Base\Controller\Component;
 
 use Cake\Controller\Component;
-use Cake\Utility\Hash;
 use Cake\Routing\Router;
 use Base\Base;
 
@@ -31,6 +30,7 @@ class BaseComponent extends Component {
         $request=$this->_registry->getController()->request;
         $url=array();
         $url['plugin']=$request->param('plugin');
+        $url['prefix']=$request->param('prefix');
         $url['controller']=$request->param('controller');
         $url['action']=$request->param('action');
         
@@ -89,6 +89,10 @@ class BaseComponent extends Component {
         else if(is_array($url)){
             if(!empty($url['plugin'])){
                 $surl.=$url['plugin'].'/';
+            }
+
+            if(!empty($url['prefix'])){
+                $surl.=$url['prefix'].'/';
             }
 
             $surl.=!empty($url['controller'])?$url['controller']:$request->params['controller'].'/';

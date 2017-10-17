@@ -3,7 +3,7 @@ namespace Base\Model;
 
 use Cake\ORM\Query;
 
-class BaseQuery {
+class Queries {
 
     static public function search(Query $query,$text,$fields=[]){
         $conditions=[];

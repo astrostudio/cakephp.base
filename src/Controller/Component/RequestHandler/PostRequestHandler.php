@@ -1,11 +1,10 @@
 <?php
-namespace Base\Controller\Component\BaseRequest;
+namespace Base\Controller\Component\RequestHandler;
 
 use Cake\Network\Request;
 use Cake\Utility\Hash;
-use Base\Controller\Component\BaseRequest\IBaseRequestHandler;
 
-class PostRequestHandler implements IBaseRequestHandler {
+class PostRequestHandler implements IRequestHandler {
 
     public function has(Request $request,$name){
         if(!empty($request->data)){

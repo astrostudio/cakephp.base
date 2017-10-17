@@ -7,7 +7,7 @@ use Cake\ORM\Query;
 use Cake\I18n\I18n;
 use Cake\ORM\TableRegistry;
 
-class BaseLocaleBehavior extends Behavior {
+class LocaleBehavior extends Behavior {
 
     protected $_localeTable=null;
     protected $_locale=null;
@@ -55,25 +55,7 @@ class BaseLocaleBehavior extends Behavior {
         }
 
         $this->_locale=$locale;
+
+        return($this->_locale);
     }
-
-    /*
-    public function findLocale(Query $query,array $options){
-        $locale=!empty($options['locale'])?$options['locale']:$this->locale();
-        $where=[$this->_localeTable->aliasField($this->_config['locale'])=>$locale];
-        $fields=[];
-
-        foreach($this->_config['fields'] as $field){
-            $localeField=$this->_localeTable->aliasField($field);
-
-            $fields[$field.$this->_config['suffix']]='IF(LENGTH('.$localeField.')>0,'.$localeField.','.$this->_table->aliasField($field).')';
-        }
-
-        $query=$query->leftJoinWith($this->_config['alias'],function(Query $q) use ($where,$fields){
-            return($q->where($where)->select($fields));
-        });
-
-        return($query);
-    }
-    */
 }

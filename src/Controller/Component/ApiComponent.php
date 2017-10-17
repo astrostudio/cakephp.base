@@ -3,16 +3,14 @@ namespace Base\Controller\Component;
 
 use Cake\Controller\Component;
 use Cake\Network\Response;
-use Cake\Utility\Hash;
 use Cake\ORM\Query;
 use Cake\ORM\Table;
-use Cake\ORM\Entity;
 use Base\Base;
-use Base\Model\BaseQuery;
+use Base\Model\Queries;
 use Exception;
 use Cake\Utility\Inflector;
 
-class BaseApiComponent extends Component {
+class ApiComponent extends Component {
 
     const SUCCESS=200;
     const CREATED=201;
@@ -24,7 +22,7 @@ class BaseApiComponent extends Component {
     const PRECONDITION=412;
     const EXCEPTION=500;
 
-    public $components=['Base.BaseRequest'];
+    public $components=['Base.Request'];
     public $settings=[];
 
     public function initialize(array $config){
@@ -71,14 +69,14 @@ class BaseApiComponent extends Component {
 
     public function query(Query $query,$sorters=[],$searches=[],$filters=[],$callable=null){
         try {
-            $page = addslashes($this->BaseRequest->get('page', 1,'get'));
+            $page = addslashes($this->Request->get('page', 1,'get'));
             $page = $page ? $page : 1;
-            $limit = addslashes($this->BaseRequest->get('limit', 20,'get'));
-            $offset=addslashes($this->BaseRequest->get('offset',null,'get'));
-            $sorter = addslashes($this->BaseRequest->get('sorter', null,'get'));
-            $search = addslashes($this->BaseRequest->get('search', null,'get'));
-            $filter= addslashes($this->BaseRequest->get('filter',null,'get'));
-            $fields = addslashes($this->BaseRequest->get('fields', '','get'));
+            $limit = addslashes($this->Request->get('limit', 20,'get'));
+            $offset=addslashes($this->Request->get('offset',null,'get'));
+            $sorter = addslashes($this->Request->get('sorter', null,'get'));
+            $search = addslashes($this->Request->get('search', null,'get'));
+            $filter= addslashes($this->Request->get('filter',null,'get'));
+            $fields = addslashes($this->Request->get('fields', '','get'));
 
             if(!empty($fields)){
                 $fields = explode(',', $fields);
@@ -93,7 +91,7 @@ class BaseApiComponent extends Component {
             }
 
             if (!empty($search) and ($search !== 'false')) {
-                $query=BaseQuery::search($query,$search,$searches);
+                $query=Queries::search($query,$search,$searches);
             }
 
             if(!empty($filter) and !empty($filters[$filter])){
@@ -154,9 +152,9 @@ class BaseApiComponent extends Component {
         try {
             $query=$table->find()->applyOptions($queryOptions);
 
-            if($this->BaseRequest->has('id','param')) {
+            if($this->Request->has('id','param')) {
                 $query=$query->where([
-                    $table->primaryKey()=>$this->BaseRequest->get('id',0,'param')
+                    $table->primaryKey()=>$this->Request->get('id',0,'param')
                 ]);
             }
 
@@ -189,13 +187,13 @@ class BaseApiComponent extends Component {
         try {
             $code=self::SUCCESS;
 
-            $data=Base::extend(
-                $this->_registry->getController()->request->data(),
-                $this->_registry->getController()->request->query,
-                $data
-            );
+            if(isset($this->_registry->getController()->request->data)){
+                $data=Base::extend($this->_registry->getController()->request->data,$data);
+            }
 
-            $id=$this->BaseRequest->get($table->primaryKey(),0,'post');
+            $data=Base::extend($this->_registry->getController()->request->query,$data);
+
+            $id=$this->Request->get($table->primaryKey(),0,'post');
 
             if(!empty($id)){
                 $entity=$table->get($id);
@@ -227,7 +225,7 @@ class BaseApiComponent extends Component {
 
     public function delete(Table $table,$cascade=true){
         try {
-            $entity=$table->get($this->BaseRequest->get('id',0,'param'));
+            $entity=$table->get($this->Request->get('id',0,'param'));
 
             if(!$entity){
                 return ($this->responseCode(self::NOT_FOUND, __d(Inflector::underscore($table->alias()), '_not_deleted')));

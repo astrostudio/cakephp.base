@@ -1,13 +1,12 @@
 <?php
 namespace Base\Model\Access;
 
-use Base\Model\Access\IBaseAccess;
 use Cake\ORM\Query;
 use Cake\Datasource\EntityInterface;
 use ArrayObject;
 use Cake\ORM\Table;
 
-class BaseAccess implements IBaseAccess {
+class BasicAccess implements IAccess {
 
     protected $_table=null;
 

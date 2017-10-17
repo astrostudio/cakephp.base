@@ -7,20 +7,20 @@ use Cake\Network\Response;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
 
-class BaseIpAuthenticate extends BaseAuthenticate
+class KeyAuthenticate extends BaseAuthenticate
 {
     public function authenticate(Request $request, Response $response){
         return($this->getUser($request));
     }
 
     public function getUser(Request $request){
-        $ip=$request->clientIp();
+        $key=$request->env('Authorization');
 
-        if(empty($ip)){
-            return(false);
+        if(empty($key)) {
+            return (null);
         }
 
-        $user=$this->_queryIp($ip)->first();
+        $user=$this->_queryKey($key);
 
         if(!$user){
             return(false);
@@ -29,17 +29,17 @@ class BaseIpAuthenticate extends BaseAuthenticate
         return($user->toArray());
     }
 
-    protected function _queryIp($ip){
+    protected function _queryKey($key){
         $config = $this->_config;
         $table = TableRegistry::get($config['userModel']);
-        $field=Hash::get($config,'fields.ip','ip');
+        $field=Hash::get($config,'fields.key','key');
 
 
         $options = [
             'conditions'=>[
                 'OR'=>[
-                    $table->aliasField($field)=>$ip,
-                    '"'.$ip.'"'=>'REGEXP '.$table->aliasField($field)
+                    $table->aliasField($field)=>$key,
+                    '"'.$key.'"'=>'REGEXP '.$table->aliasField($field)
                 ]
             ]
         ];
@@ -61,4 +61,5 @@ class BaseIpAuthenticate extends BaseAuthenticate
 
         return $query;
     }
+
 }

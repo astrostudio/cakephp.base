@@ -6,7 +6,7 @@ use Cake\Network\Request;
 use Cake\Network\Response;
 use Base\Controller\Component\BaseApiComponent;
 
-class BaseApiUnAuthenticate extends BaseAuthenticate
+class ApiUnAuthenticate extends BaseAuthenticate
 {
     public function authenticate(Request $request, Response $response){
         return(false);

@@ -3,10 +3,9 @@ namespace Base\Model\Behavior;
 
 use Cake\ORM\Behavior;
 use Cake\ORM\TableRegistry;
-use Cake\ORM\Query;
 use Cake\Utility\Hash;
 
-class BaseLinkBehavior extends Behavior {
+class LinkBehavior extends Behavior {
 
     private $__linkPred=null;
     private $__linkSucc=null;
