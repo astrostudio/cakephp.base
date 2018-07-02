@@ -9,6 +9,7 @@ use Base\Base;
 use Base\Model\Queries;
 use Exception;
 use Cake\Utility\Inflector;
+use Cake\Utility\Hash;
 
 class ApiComponent extends Component {
 
@@ -65,6 +66,72 @@ class ApiComponent extends Component {
 
     public function find(Table $table,$queryOptions=[],$sorters=[],$searches=[],$filters=[],$callable=null){
         return($this->query($table->query()->applyOptions($queryOptions),$sorters,$searches,$filters,$callable));
+    }
+
+    public function page(Query $query,array $options=[]){
+        try{
+            $data=[];
+            $page=$this->request->query('page');
+            $limit=$this->request->query('limit');
+            $offset=$this->request->query('offset');
+
+            $page=!empty($page)?(int)$page:1;
+            $limit=!empty($limit)?(int)$limit:20;
+            $offset=isset($offset)?(int)$offset:0;
+            $offset=($page-1)*$limit+$offset;
+            $count=$query->count();
+            $pages=$count > 0 ? ceil($count / $limit) : 0;
+
+            $data['page']=$page;
+            $data['pages']=$pages;
+            $data['count']=$count;
+            $data['offset']=$offset;
+            $data['limit']=$limit;
+
+            $query->offset($offset)->limit($limit);
+
+            $filter=$this->request->query('filter');
+
+            if(!empty($filter)){
+                $data['filter']=$filter;
+                $filters=Hash::get($options,'filters',[]);
+
+                $query=Queries::filter($query,$filter,$filters);
+            }
+
+            $sorter=$this->request->query('sorter');
+
+            if(!empty($sorter)){
+                $data['sorter']=$sorter;
+                $sorters=Hash::get($options,'sorters',[]);
+
+                $query=Queries::order($query,$sorter,$sorters);
+            }
+
+
+            $searches=Hash::get($options,'searches',[]);
+
+            if(!empty($searches)) {
+                $data['search'] = [];
+
+                foreach ($searches as $p => $s) {
+                    $v = $this->request->query($p);
+
+                    if (!empty($v)) {
+                        $data['search'][$p] = $s;
+
+                        $query = Queries::search($query, $v, $s);
+                    }
+                }
+            }
+
+            $data['rows']=$query->toArray();
+
+            return($this->response($data));
+        }
+        catch(Exception $exc){
+            return($this->responseCode(self::EXCEPTION,$exc->getMessage()));
+        }
     }
 
     public function query(Query $query,$sorters=[],$searches=[],$filters=[],$callable=null){
@@ -147,6 +214,7 @@ class ApiComponent extends Component {
             return($this->responseCode(self::EXCEPTION,$exc->getMessage()));
         }
     }
+
 
     public function load(Table $table,$queryOptions=[]){
         try {

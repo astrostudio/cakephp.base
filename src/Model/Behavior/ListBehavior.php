@@ -113,8 +113,8 @@ class ListBehavior extends Behavior {
             if(!$this->_table->query()->update()->set(
                 new QueryExpression($this->__listField.'='.$this->__listField.' + 1')
             )->where(Base::extend($scope, [
-                $this->_table->alias() . '.' . $this->_table->primaryKey() . '<>' . $entity->id,
-                $this->_table->alias() . '.' . $this->__listField . '>=' . $entity->get($this->__listField)
+                $this->_table->primaryKey() . ' <>' . $entity->id,
+                $this->__listField . ' >=' => $entity->get($this->__listField)
             ]))->execute()) {
                 return (false);
             }
