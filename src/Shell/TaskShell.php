@@ -79,20 +79,20 @@ class TaskShell extends Shell{
         return $parser;
     }
 
-    public function initialize(){
+    public function initialize():void{
         parent::initialize();
 
         $this->loadModel('Base.Task');
     }
 
-    public function getOptionParser(){
+    public function getOptionParser():ConsoleOptionParser{
         $parser=parent::getOptionParser();
         $parser->addOption('task-id',['help' =>'TaskID']);
 
         return($parser);
     }
 
-    public function startup(){
+    public function startup():void{
         parent::startup();
 
         $this->_update();

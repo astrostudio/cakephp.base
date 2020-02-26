@@ -11,7 +11,7 @@ use Exception;
  */
 class ModelInstallerShell extends Shell
 {
-    public function initialize(){
+    public function initialize():void{
         parent::initialize();
     }
 
