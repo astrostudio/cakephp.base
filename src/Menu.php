@@ -23,7 +23,7 @@ class Menu {
 
     static public function locale(){
         $item=[
-            'name'=>'<span class="flag flag-'.I18n::locale().'"></span>',
+            'name'=>'<span class="flag flag-'.I18n::getLocale().'"></span>',
             'menu'=>[]
         ];
 

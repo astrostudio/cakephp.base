@@ -2,7 +2,6 @@
 namespace Base\View\Helper;
 
 use Cake\View\Helper;
-use Cake\View\View;
 use Cake\Utility\Hash;
 use Cake\Routing\Router;
 use Base\Base;
@@ -18,9 +17,9 @@ class BaseHelper extends Helper {
         return($default);
     }    
     
-    public function back($url=array()){
-        if($this->request->session()->check('Base.back')){
-            return($this->request->session()->read('Base.back'));
+    public function back($url=[]){
+        if($this->request->getSession()->check('Base.back')){
+            return($this->request->getSession()->read('Base.back'));
         }
         
         return($url);
@@ -42,22 +41,22 @@ class BaseHelper extends Helper {
         $surl=Router::url('/',true);
         
         if(!isset($url)){
-            if(!empty($this->request->params['plugin'])){
-                $surl.=$this->request->params['plugin'];
+            if(!empty($this->request->getParam('plugin'))){
+                $surl.=$this->request->getParam('plugin');
             }
 
-            if(!empty($this->request->params['prefix'])){
-                $surl.=$this->request->params['prefix'];
+            if(!empty($this->request->getParam('prefix'))){
+                $surl.=$this->request->getParam('prefix');
             }
 
-            $surl.=$this->request->params['controller'].'/'.$this->request->params['action'];
+            $surl.=$this->request->getParam('controller').'/'.$this->request->getParam('action');
         }
         else if(is_array($url)){
             if(!empty($url['plugin'])){
                 $surl.=$url['plugin'].'/';
             }
 
-            $surl.=(!empty($url['controller'])?$url['controller']:$this->request->params['controller']).'/';
+            $surl.=(!empty($url['controller'])?$url['controller']:$this->request->getParam('controller')).'/';
             $surl.=!empty($url['action'])?$url['action']:'index';
         }
         
@@ -127,7 +126,7 @@ class BaseHelper extends Helper {
     }
 
     public function urlWithRedirect($url,$name='redirect'){
-        $redirect=$this->request->query($name);
+        $redirect=$this->request->getQuery($name);
 
         if(is_array($url)){
             $url=Base::extend($url,['?'=>['redirect'=>$redirect]]);
@@ -136,4 +135,3 @@ class BaseHelper extends Helper {
         return($url);
     }
 }
-?>

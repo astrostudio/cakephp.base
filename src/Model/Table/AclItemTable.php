@@ -1,0 +1,109 @@
+<?php
+namespace Base\Model\Table;
+
+use Cake\ORM\Table;
+
+/**
+ * @property \Base\Model\Table\AclAroTable $AclAro
+ * @property \Base\Model\Table\AclAcoTable $AclAco
+ * @property \Base\Model\Table\AclAloTable $AclAlo
+ */
+class AclItemTable extends Table {
+
+    public function initialize(array $config):void{
+        $this->setTable('acl_item');
+        $this->setPrimaryKey(['acl_aro_id','acl_aco_id','acl_alo_id']);
+        $this->belongsTo('Base.AclAro');
+        $this->belongsTo('Base.AclAco');
+        $this->belongsTo('Base.AclAlo');
+        $this->addBehavior('Timestamp');
+    }
+
+    public function append($aroId,$acoId,$aloId,int $mask=0){
+        if(!is_numeric($aroId)){
+            $aroId=$this->AclAro->getIdByName($aroId);
+        }
+
+        if(!is_numeric($acoId)){
+            $acoId=$this->AclAco->getIdByName($acoId);
+        }
+
+        if(!is_numeric($aloId)){
+            $aloId=$this->AclAlo->getIdByName($aloId);
+        }
+
+        $item=$this->find()->where([
+            'acl_aro_id'=>$aroId,
+            'acl_aco_id'=>$acoId,
+            'acl_alo_id'=>$aloId
+        ])->first();
+
+        if($item){
+            return(true);
+        }
+
+        $item = $this->newEntity(
+            [
+                'acl_aro_id' => $aroId,
+                'acl_aco_id' => $acoId,
+                'acl_alo_id' => $aloId,
+                'mask'=>$mask
+            ]
+        );
+
+        return($this->save($item));
+    }
+
+    public function copy($srcAroId,$srcAcoId,$trgAroId,$trgAcoId){
+        $conditions=[];
+
+        if(!empty($srcAroId)) {
+            if (!is_numeric($srcAroId)) {
+                $srcAroId = $this->AclAro->getIdByName($srcAroId);
+            }
+
+            $conditions['AclItem.acl_aro_id']=$srcAroId;
+        }
+
+        if(!empty($srcAcoId)) {
+            if (!is_numeric($srcAcoId)) {
+                $srcAcoId = $this->AclAco->getIdByName($srcAcoId);
+            }
+
+            $conditions['AclItem.acl_aco_id']=$srcAcoId;
+        }
+
+        if(empty($conditions)){
+            return(true);
+        }
+
+        if(!empty($trgAroId)) {
+            if (!is_numeric($trgAroId)) {
+                $trgAroId = $this->AclAro->getIdByName($trgAroId);
+            }
+        }
+
+        if(!empty($trgAcoId)) {
+            if (!is_numeric($trgAcoId)) {
+                $trgAcoId = $this->AclAco->getIdByName($trgAcoId);
+            }
+        }
+
+        $connection=$this->getConnection();
+
+        return($connection->transactional(function() use ($conditions,$srcAcoId,$trgAroId,$trgAcoId){
+            $items=$this->find()->where($conditions)->toArray();
+
+            /** @var \Cake\ORM\Entity $item */
+            foreach($items as $item){
+                $this->append(
+                    !empty($trgAroId)?$trgAroId:$item->get('acl_aro_id'),
+                    !empty($trgAcoId)?$trgAcoId:$item->get('acl_aco_id'),
+                    $item->get('acl_alo_id'),
+                    $item->get('mask')
+                );
+            }
+        }));
+    }
+
+}

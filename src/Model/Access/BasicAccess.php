@@ -6,7 +6,7 @@ use Cake\Datasource\EntityInterface;
 use ArrayObject;
 use Cake\ORM\Table;
 
-class BasicAccess implements IAccess {
+class BasicAccess implements AccessInterface {
 
     protected $_table=null;
 

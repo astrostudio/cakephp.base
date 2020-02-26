@@ -6,32 +6,32 @@ use Cake\Event\Event;
 use Cake\ORM\Query;
 use Cake\I18n\I18n;
 use Cake\ORM\TableRegistry;
+use Cake\Utility\Inflector;
 
 class LocaleBehavior extends Behavior {
 
+    /** @var \Cake\ORM\Table */
     protected $_localeTable=null;
     protected $_locale=null;
 
-    public function initialize(array $config){
+    public function initialize(array $config):void{
         $this->_config=array_merge($this->_config,[
-            'alias'=>$this->_table->alias().'Locale',
+            'alias'=>$this->_table->getAlias().'Locale',
             'fields'=>[],
             'locale'=>'locale',
             'suffix'=>'_locale'
         ],$config);
 
-        $this->_localeTable=TableRegistry::get($this->_config['alias']);
+        $this->_localeTable=TableRegistry::getTableLocator()->get($this->_config['alias']);
     }
 
-    public function beforeFind(Event $event, Query $query, $options){
+    public function beforeFind(/** @noinspection PhpUnusedParameterInspection */ Event $event, Query $query, $options){
         $locale=!empty($options['locale'])?$options['locale']:$this->locale();
         $where=[$this->_localeTable->aliasField($this->_config['locale'])=>$locale];
         $fields=[];
 
         foreach($this->_config['fields'] as $field){
-            $localeField=$this->_localeTable->aliasField($field);
-
-            $fields[$field.$this->_config['suffix']]='IF(LENGTH('.$localeField.')>0,'.$localeField.','.$this->_table->aliasField($field).')';
+           $fields[$this->_table->getAlias().'__'.$field.$this->_config['suffix']]=$this->getLocaleColumn($field);
         }
 
         $query=$query->leftJoinWith($this->_config['alias'],function(Query $q) use ($where,$fields){
@@ -39,6 +39,62 @@ class LocaleBehavior extends Behavior {
         });
 
         return($query);
+    }
+
+    public function findLocale(Query $query,array $options=[]):Query
+    {
+        if(empty($options['locales'])){
+            return($query);
+        }
+
+        return($query->contain([$this->getLocaleAlias()=>function(Query $q) use ($options){
+            return($q->where([
+                $this->getLocaleAlias().'.'.$this->getLocaleName().' IN'=>$options['locales']
+            ]));
+        }])->formatResults(function (\Cake\Collection\CollectionInterface $results) {
+            $field = Inflector::underscore($this->getLocaleAlias());
+
+            return ($results->map(
+                function ($row) use ($field) {
+                    $locales=$row[$field]??[];
+                    $list=[];
+
+                    foreach($locales as $locale){
+                        $list[$locale->get($this->getLocaleName())]=$locale;
+                    }
+
+                    $row[$field]=$list;
+
+                    return $row;
+                }
+            ));
+        }));
+    }
+
+    public function getLocaleColumn(string $field){
+        $localeField=$this->_localeTable->aliasField($field);
+
+        return('IF(LENGTH('.$localeField.')>0,'.$localeField.','.$this->_table->aliasField($field).')');
+    }
+
+    public function getLocaleAlias():string
+    {
+        return($this->_config['alias']);
+    }
+
+    public function getLocaleFields():array
+    {
+        return($this->_config['fields']);
+    }
+
+    public function getLocaleSuffix():string
+    {
+        return($this->_config['suffix']);
+    }
+
+    public function getLocaleName():string
+    {
+        return($this->_config['locale']);
     }
 
     public function localeField($field){
@@ -51,7 +107,7 @@ class LocaleBehavior extends Behavior {
 
     public function locale($locale=null){
         if($locale===null){
-            return(!empty($this->_locale)?$this->_locale:I18n::locale());
+            return(!empty($this->_locale)?$this->_locale:I18n::getLocale());
         }
 
         $this->_locale=$locale;

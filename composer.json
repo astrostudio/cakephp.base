@@ -1,9 +1,8 @@
 {
-    "name": "astrostudio/cakephp.base",
+    "name": "pwnai/cakephp.base",
     "type": "cakephp-plugin",
     "require": {
-        "composer/installers": "*",
-        "astrostudio/php.base": "3.1.*"
+        "composer/installers": "*"
     },
     "autoload": {
         "psr-4": {

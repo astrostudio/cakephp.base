@@ -6,7 +6,6 @@ use Cake\Datasource\EntityInterface;
 use Cake\ORM\Behavior;
 use Cake\Database\Expression\QueryExpression;
 use Cake\Event\Event;
-use Cake\Utility\Inflector;
 use Cake\Utility\Hash;
 use Base\Base;
 
@@ -15,7 +14,7 @@ class ListBehavior extends Behavior {
     private $__listField='position';
     private $__listScope=[];
 
-    public function initialize(array $config){
+    public function initialize(array $config):void{
         $this->__listField=Hash::get($config,'field','position');
         $this->__listScope=Hash::get($config,'scope',[]);
     }
@@ -25,7 +24,7 @@ class ListBehavior extends Behavior {
 
         foreach($this->__listScope as $field){
             $scope[]=[
-                $this->_table->alias().'.'.$field=>$values[$field]
+                $this->_table->getAlias().'.'.$field=>$values[$field]
             ];
         }
 
@@ -35,7 +34,7 @@ class ListBehavior extends Behavior {
     private function __max($scope=[]){
         $max=$this->_table
             ->find()
-            ->select(['max'=>'MAX('.$this->_table->alias().'.'.$this->__listField.')'])
+            ->select(['max'=>'MAX('.$this->_table->getAlias().'.'.$this->__listField.')'])
             ->where($scope)
             ->first()
             ->toArray();
@@ -47,7 +46,7 @@ class ListBehavior extends Behavior {
         return(0);
     }
 
-    public function beforeSave(Event $event,EntityInterface $entity, ArrayObject $options){
+    public function beforeSave(/** @noinspection PhpUnusedParameterInspection */ Event $event,EntityInterface $entity, ArrayObject $options){
         $scope=$this->__scope($entity->extract($this->__listScope));
 
         if($entity->isNew()) {
@@ -106,16 +105,21 @@ class ListBehavior extends Behavior {
         return(true);
     }
 
-    public function afterSave(Event $event,EntityInterface $entity, ArrayObject $options){
+    public function afterSave(/** @noinspection PhpUnusedParameterInspection */ Event $event,EntityInterface $entity, ArrayObject $options){
         $scope=$this->__scope($entity->extract($this->__listScope));
+        $primaryKeyFields=$this->_table->getPrimaryKey();
+        $primaryKeyConditions=[];
+
+        foreach($primaryKeyFields as $primaryKeyField){
+            $primaryKeyConditions[]=$primaryKeyField.' <> '.$entity->get($primaryKeyField);
+        }
 
         if($entity->isNew()) {
             if(!$this->_table->query()->update()->set(
                 new QueryExpression($this->__listField.'='.$this->__listField.' + 1')
-            )->where(Base::extend($scope, [
-                $this->_table->primaryKey() . ' <>' . $entity->id,
+            )->where(Base::extend($scope, array_merge($primaryKeyConditions,[
                 $this->__listField . ' >=' => $entity->get($this->__listField)
-            ]))->execute()) {
+            ])))->execute()) {
                 return (false);
             }
         }
@@ -130,17 +134,16 @@ class ListBehavior extends Behavior {
                 if(!$this->_table->query()->update()->set(
                     new QueryExpression($this->__listField.'='.$this->__listField.' - 1')
                 )->where(Base::extend($oldScope,[
-                    $this->_table->alias().'.'.$this->__listField.'>'.$oldPosition
+                    $this->_table->getAlias().'.'.$this->__listField.'>'.$oldPosition
                 ]))->execute()){
                     return(false);
                 }
 
                 if(!$this->_table->query()->update()->set(
                     new QueryExpression($this->__listField.'='.$this->__listField.' + 1')
-                )->where(Base::extend($scope, [
-                    $this->_table->alias() . '.' . $this->_table->primaryKey() . '<>' . $entity->id,
-                    $this->_table->alias() . '.' . $this->__listField . '>=' . $entity->get($this->__listField)
-                ]))->execute()) {
+                )->where(Base::extend($scope, array_merge($primaryKeyConditions,[
+                    $this->_table->getAlias() . '.' . $this->__listField . '>=' . $entity->get($this->__listField)
+                ])))->execute()) {
                     return (false);
                 }
             }
@@ -154,20 +157,18 @@ class ListBehavior extends Behavior {
                     if ($oldPosition > $position) {
                         if (!$this->_table->query()->update()->set(
                             new QueryExpression($this->__listField . ' = ' . $this->__listField . ' + 1')
-                        )->where(Base::extend($scope, [
-                            $this->_table->alias().'.'.$this->_table->primaryKey().'<>'.$entity->id,
-                            $this->_table->alias() . '.' . $this->__listField . '>=' . $position,
-                            $this->_table->alias() . '.' . $this->__listField . '<' . $oldPosition
-                        ]))->execute()
+                        )->where(Base::extend($scope, array_merge($primaryKeyConditions,[
+                            $this->_table->getAlias() . '.' . $this->__listField . '>=' . $position,
+                            $this->_table->getAlias() . '.' . $this->__listField . '<' . $oldPosition
+                        ])))->execute()
                         ) {
                             return (false);
                         }
                     } else {
-                        if (!$this->_table->query()->update()->set(new QueryExpression($this->__listField . ' = ' . $this->__listField . ' - 1'))->where(Base::extend($scope, [
-                            $this->_table->alias().'.'.$this->_table->primaryKey().'<>'.$entity->id,
-                            $this->_table->alias() . '.' . $this->__listField . '>' . $oldPosition,
-                            $this->_table->alias() . '.' . $this->__listField . '<=' . $position
-                        ]))->execute()
+                        if (!$this->_table->query()->update()->set(new QueryExpression($this->__listField . ' = ' . $this->__listField . ' - 1'))->where(Base::extend($scope, array_merge($primaryKeyConditions,[
+                            $this->_table->getAlias() . '.' . $this->__listField . '>' . $oldPosition,
+                            $this->_table->getAlias() . '.' . $this->__listField . '<=' . $position
+                        ])))->execute()
                         ) {
                             return (false);
                         }
@@ -179,12 +180,12 @@ class ListBehavior extends Behavior {
         return(true);
     }
 
-    public function afterDelete(Event $event, EntityInterface $entity, ArrayObject $options){
+    public function afterDelete(/** @noinspection PhpUnusedParameterInspection */ Event $event, EntityInterface $entity, ArrayObject $options){
         $position=$entity->get($this->__listField);
         $scope=$this->__scope($entity->extract($this->__listScope));
 
         if(!$this->_table->query()->update()->set(new QueryExpression($this->__listField.'='.$this->__listField.' - 1'))->where(Base::extend($scope,[
-            $this->_table->alias().'.'.$this->__listField.'>'.$position
+            $this->_table->getAlias().'.'.$this->__listField.'>'.$position
         ]))->execute()){
             return(false);
         }
