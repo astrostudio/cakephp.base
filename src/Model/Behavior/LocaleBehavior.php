@@ -1,6 +1,7 @@
 <?php
 namespace Base\Model\Behavior;
 
+use Cake\Collection\CollectionInterface;
 use Cake\ORM\Behavior;
 use Cake\Event\Event;
 use Cake\ORM\Query;
@@ -51,7 +52,7 @@ class LocaleBehavior extends Behavior {
             return($q->where([
                 $this->getLocaleAlias().'.'.$this->getLocaleName().' IN'=>$options['locales']
             ]));
-        }])->formatResults(function (\Cake\Collection\CollectionInterface $results) {
+        }])->formatResults(function (CollectionInterface $results) {
             $field = Inflector::underscore($this->getLocaleAlias());
 
             return ($results->map(

@@ -2,6 +2,7 @@
     "name": "pwnai/cakephp.base",
     "type": "cakephp-plugin",
     "require": {
+        "ext-json": "*",
         "composer/installers": "*"
     },
     "autoload": {

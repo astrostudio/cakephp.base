@@ -10,24 +10,24 @@ use Cake\Log\Log;
 
 class LogBehavior extends Behavior {
 
-    private $__scope=null;
+    private $scope=null;
 
     public function initialize(array $config):void{
-        $this->__scope=Hash::get($config,'scope','model');
+        $this->scope=Hash::get($config,'scope','model');
     }
 
     public function afterSaveCommit(/** @noinspection PhpUnusedParameterInspection */ Event $event, EntityInterface $entity, ArrayObject $options){
         if($entity->isNew()){
-            Log::info('INSERT'."\t".$this->_table->getAlias()."\t".json_encode($entity),['scope'=>$this->__scope]);
+            Log::info('INSERT'."\t".$this->_table->getAlias()."\t".json_encode($entity),['scope'=>$this->scope]);
         }
         else {
-            Log::info('UPDATE'."\t".$this->_table->getAlias()."\t".json_encode($entity),['scope'=>$this->__scope]);
+            Log::info('UPDATE'."\t".$this->_table->getAlias()."\t".json_encode($entity),['scope'=>$this->scope]);
         }
     }
 
 
     public function afterDeleteCommit(/** @noinspection PhpUnusedParameterInspection */ Event $event, EntityInterface $entity, ArrayObject $options){
-        Log::info('DELETE'."\t".$this->_table->getAlias()."\t".json_encode($entity),['scope'=>$this->__scope]);
+        Log::info('DELETE'."\t".$this->_table->getAlias()."\t".json_encode($entity),['scope'=>$this->scope]);
     }
 
 }
