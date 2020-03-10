@@ -20,7 +20,7 @@ class Installer extends BaseInstaller
 
     private $config;
 
-    public function __construct(string $config='default',array $values=[]){
+    public function __construct(string $config='default'){
         $this->config=$config;
     }
 
